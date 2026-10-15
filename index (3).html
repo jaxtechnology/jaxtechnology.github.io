@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jax Technology - Classroom Tools</title>
+<style>
+  :root {
+    --paper: #f5f6fb;
+    --ink: #1b2140;
+    --ink-soft: #565d7a;
+    --indigo: #4a4ddb;
+    --sun: #ffc83d;
+    --teal: #0b7a6e;
+    --coral: #ff6b57;
+    --line: #d9dcea;
+    --font: ui-rounded, "SF Pro Rounded", "Nunito", "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #12152b;
+      --ink: #f1f2fb;
+      --ink-soft: #aab0cc;
+      --line: #343a5e;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  :focus-visible { outline: 3px solid var(--indigo); outline-offset: 3px; }
+  @media (prefers-color-scheme: dark) {
+    :focus-visible { outline-color: var(--sun); }
+  }
+
+  #app {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 20px 64px;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px 32px;
+    padding-bottom: 32px;
+    border-bottom: 2px solid var(--line);
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2.5rem, 8vw, 4.25rem);
+    font-weight: 800;
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+  }
+
+  .subtitle {
+    margin: 12px 0 0;
+    color: var(--ink-soft);
+    font-size: 1.2rem;
+  }
+
+  .login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 0 26px;
+    background: var(--coral);
+    color: #1b2140;
+    font-weight: 800;
+    font-size: 1.1rem;
+    text-decoration: none;
+    border-radius: 14px;
+    transition: transform .12s ease, background-color .12s ease;
+  }
+  .login-btn:hover { background: #ff7f6d; transform: translateY(-2px); }
+  .login-btn:active { transform: translateY(1px); }
+
+  /* ---------- Sections ---------- */
+  section { margin-top: 44px; }
+
+  h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  /*
+    ---------------------------------------------------------
+    TO ADD A NEW TOOL OR GAME: copy one <a class="card"> block
+    inside the section you want (#learnGrid or #gamesGrid),
+    change the href, title and description, and pick a color
+    class (c-indigo, c-sun, c-teal or c-coral). The picture in
+    the corner is the <svg class="art"> inside each card: swap
+    it for a different shape, or delete it.
+    ---------------------------------------------------------
+  */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-top: 18px;
+  }
+  @media (min-width: 640px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+    .card.wide { grid-column: span 2; }
+  }
+
+  .card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 230px;
+    padding: 24px;
+    border-radius: 22px;
+    text-decoration: none;
+    transition: transform .14s ease;
+  }
+  .card:hover { transform: translateY(-4px); }
+  .card:active { transform: translateY(0); }
+
+  .c-indigo { background: var(--indigo); color: #fff; }
+  .c-sun    { background: var(--sun);    color: #1b2140; }
+  .c-teal   { background: var(--teal);   color: #fff; }
+  .c-coral  { background: var(--coral);  color: #1b2140; }
+
+  /* Corner artwork */
+  .art {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 88%;
+    height: auto;
+    pointer-events: none;
+  }
+  .card.wide .art { width: 68%; }
+  .art .light { fill: #fff; fill-opacity: 0.2; }
+  .art .dark  { fill: #1b2140; fill-opacity: 0.14; }
+  .art .ring-light { fill: none; stroke: #fff; stroke-opacity: 0.35; stroke-width: 6; }
+  .art .ring-dark  { fill: none; stroke: #1b2140; stroke-opacity: 0.25; stroke-width: 6; }
+
+  .card-title {
+    position: relative;
+    margin: 0 0 2px;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+  }
+  .card.wide .card-title { font-size: 1.75rem; }
+
+  .card-desc { position: relative; margin: 0; font-size: 1rem; opacity: 0.92; }
+
+  .card.soon {
+    background: transparent;
+    border: 2px dashed var(--line);
+    color: var(--ink-soft);
+    cursor: default;
+  }
+  .card.soon:hover { transform: none; }
+  .card.soon .art .ring-soft { fill: none; stroke: var(--line); stroke-width: 6; stroke-dasharray: 14 12; }
+  .card.soon .art .plus { stroke: var(--line); stroke-width: 10; stroke-linecap: round; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 2px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card, .login-btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>Jax Technology</h1>
+      <p class="subtitle">Classroom tools and activities</p>
+    </div>
+
+    <a class="login-btn" href="https://clever.com/oauth/authorize?channel=clever&amp;client_id=o4kphvh2ygnvx83vxc64&amp;confirmed=true&amp;district_id=682b7c6bb847311cce5f4769&amp;redirect_uri=https%3A%2F%2Fclever.com%2Fin%2Fauth_callback&amp;response_type=code" target="_blank" rel="noopener">
+      <span aria-hidden="true">🔑</span> Log in with Clever
+    </a>
+  </header>
+
+  <section aria-labelledby="learn-heading">
+    <h2 id="learn-heading">Learn</h2>
+    <div class="grid" id="learnGrid">
+
+      <a class="card wide c-indigo" href="/kid-code-jax/">
+        <!-- code blocks + jaguar paw -->
+        <svg class="art" viewBox="0 0 420 230" aria-hidden="true">
+          <rect class="light" x="20" y="24" width="130" height="36" rx="11"/>
+          <rect class="light" x="20" y="68" width="170" height="36" rx="11"/>
+          <rect class="light" x="20" y="112" width="110" height="36" rx="11"/>
+          <rect class="light" x="20" y="156" width="150" height="36" rx="11"/>
+          <g class="light" transform="translate(222 14) scale(0.98)">
+            <ellipse cx="100" cy="140" rx="52" ry="42"/>
+            <ellipse cx="40" cy="84" rx="18" ry="26" transform="rotate(-22 40 84)"/>
+            <ellipse cx="78" cy="52" rx="18" ry="27" transform="rotate(-7 78 52)"/>
+            <ellipse cx="124" cy="52" rx="18" ry="27" transform="rotate(7 124 52)"/>
+            <ellipse cx="162" cy="84" rx="18" ry="26" transform="rotate(22 162 84)"/>
+          </g>
+        </svg>
+        <h3 class="card-title">Kid Code Jax</h3>
+        <p class="card-desc">Learn to code by solving block missions.</p>
+      </a>
+
+      <a class="card c-sun" href="/mouse/">
+        <!-- cursor + click ripples -->
+        <svg class="art" viewBox="0 0 220 230" aria-hidden="true">
+          <circle class="ring-dark" cx="86" cy="52" r="30"/>
+          <circle class="ring-dark" cx="86" cy="52" r="56"/>
+          <path class="dark" d="M70 36 L70 176 L106 142 L132 202 L158 190 L132 130 L182 130 Z"/>
+        </svg>
+        <h3 class="card-title">Mouse Practice</h3>
+        <p class="card-desc">Click, drag, scroll, and select.</p>
+      </a>
+
+      <!-- Add new learning tools here, copying a block above -->
+
+    </div>
+  </section>
+
+  <section aria-labelledby="games-heading">
+    <h2 id="games-heading">Games</h2>
+    <div class="grid" id="gamesGrid">
+
+      <a class="card c-teal" href="/oregon-trail/">
+        <!-- covered wagon on the prairie -->
+        <svg class="art" viewBox="0 0 220 230" aria-hidden="true">
+          <path class="light" d="M0 190 C50 160 100 180 150 165 C180 156 205 160 220 166 L220 230 L0 230 Z"/>
+          <path class="light" d="M34 100 C34 52 64 36 104 36 C144 36 174 52 174 100 Z"/>
+          <path class="light" d="M28 104 L180 104 L170 132 L38 132 Z"/>
+          <circle class="ring-light" cx="68" cy="140" r="24"/>
+          <circle class="ring-light" cx="144" cy="140" r="24"/>
+        </svg>
+        <h3 class="card-title">The Oregon Trail</h3>
+        <p class="card-desc">Pack your wagon and head west.</p>
+      </a>
+
+      <!-- Add new games here, above the "coming soon" card -->
+
+      <div class="card soon">
+        <svg class="art" viewBox="0 0 220 230" aria-hidden="true">
+          <circle class="ring-soft" cx="130" cy="86" r="58"/>
+          <path class="plus" d="M130 60 V112 M104 86 H156"/>
+        </svg>
+        <h3 class="card-title">More games coming soon</h3>
+        <p class="card-desc">Check back later.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>Mr. Sandlin's Technology Classroom</footer>
+</div>
+</body>
+</html>
