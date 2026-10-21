@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planet Hopper - A Trip Across the Solar System</title>
+<style>
+  :root {
+    --k:#000; --b:#0000aa; --g:#00aa00; --n:#aa5500; --l:#aaaaaa; --d:#555555;
+    --B:#5555ff; --G:#55ff55; --C:#55ffff; --R:#ff5555; --M:#ff55ff; --Y:#ffff55; --W:#ffffff;
+    --mono: "Courier New", Courier, "Lucida Console", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #000;
+    color: var(--W);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  a { color: var(--C); }
+  a:hover { color: var(--Y); }
+  :focus-visible { outline: 3px solid var(--Y); outline-offset: 2px; }
+
+  .wrap { max-width: 960px; margin: 0 auto; padding: 14px 14px 40px; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 0 12px; font-size: 16px; }
+  .snd {
+    font: inherit; font-size: 16px; color: var(--Y); background: #000; cursor: pointer;
+    border: 2px solid var(--W); padding: 6px 14px; min-height: 44px;
+  }
+  .snd:hover, .snd:focus-visible { background: var(--W); color: #000; outline: none; }
+  .snd[aria-pressed="true"] { color: var(--G); }
+  .snd[aria-pressed="true"]:hover, .snd[aria-pressed="true"]:focus-visible { color: #006600; }
+
+  .frame { border: 4px solid var(--W); box-shadow: 0 0 0 4px #000, 0 0 0 8px var(--B); background: #000; }
+  .screen { position: relative; border-bottom: 4px solid var(--W); }
+  .screen::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+  }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; background: #000; }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 22px;
+    padding: 8px 18px; font-size: 15px;
+    border-bottom: 2px dotted var(--d);
+  }
+  #hud[hidden] { display: none; }
+  #hud .lbl { color: var(--l); }
+  #hud .low { color: var(--R); }
+
+  #text { padding: 16px 18px 12px; outline: none; }
+  #text p { margin: 0 0 .75em; max-width: 64ch; }
+  h1.title {
+    margin: 4px 0 6px; font-size: clamp(34px, 9vw, 64px); line-height: 1; letter-spacing: .05em;
+    color: var(--Y); text-shadow: 4px 4px 0 var(--R), 8px 8px 0 var(--B);
+  }
+  h2 { margin: 0 0 .6em; font-size: 20px; letter-spacing: .04em; color: var(--Y); }
+  .sub { color: var(--C); margin-top: .9em !important; }
+  .gold { color: var(--Y); }
+  .good { color: var(--G); }
+  .bad  { color: var(--R); }
+  .hint { color: var(--C); }
+  .q    { color: var(--W); background: var(--b); padding: 6px 10px; }
+  .fx   { font-size: 16px; }
+  .fx span { margin-right: 18px; }
+  .board { white-space: pre-wrap; border: 2px solid var(--d); padding: 8px 12px; max-width: 46ch; }
+  .steps { margin: 0 0 .75em; padding-left: 1.6em; max-width: 64ch; }
+  .steps li { margin: .45em 0; }
+
+  #choices { padding: 0 10px 18px; }
+  .choice {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    font: inherit; color: var(--W); background: transparent;
+    border: 0; padding: 8px 8px; margin: 2px 0; min-height: 44px;
+  }
+  .choice .n { color: var(--Y); }
+  .choice:hover, .choice:focus-visible { background: var(--W); color: #000; outline: none; }
+  .choice:hover .n, .choice:focus-visible .n { color: #aa0000; }
+
+  .foot { margin-top: 18px; font-size: 14px; color: var(--l); max-width: 64ch; }
+
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    #text { padding: 12px 12px 8px; }
+    #choices { padding: 0 4px 14px; }
+    #hud { padding: 8px 12px; font-size: 13px; }
+  }
+
+  .ctlrow { display: flex; gap: 10px; padding: 0 8px 8px; }
+  .ctl {
+    font: inherit; color: var(--W); background: var(--b); cursor: pointer;
+    border: 2px solid var(--W); min-height: 56px; min-width: 72px;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .ctl.big { flex: 1; }
+  .ctl.on, .ctl:active { background: var(--W); color: #000; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="top"><a href="https://jaxtechnology.github.io/">Back to Jax Technology</a>
+    <button id="snd" class="snd" type="button" aria-pressed="false">Sound: Off</button></p>
+
+  <div class="frame">
+    <div class="screen"><canvas id="screen" width="320" height="160" aria-hidden="true"></canvas></div>
+    <div id="hud" hidden></div>
+    <div id="text" tabindex="-1" aria-live="polite"></div>
+    <div id="choices" role="group" aria-label="Your choices"></div>
+  </div>
+
+  <p class="foot">Planet Hopper is a classroom game about the solar system. Click a choice, or press its number key. Press M to turn sound on or off. The music and sounds are made right in your browser.</p>
+</div>
+
+<noscript><p style="padding:20px">This game needs JavaScript turned on.</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* =========================================================
+     DRAWING TOOLKIT  (320 x 160 canvas, 16-color EGA palette)
+     ========================================================= */
+  var cv = $('screen');
+  var ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  var P = { k:'#000000', b:'#0000aa', g:'#00aa00', c:'#00aaaa', r:'#aa0000', m:'#aa00aa', n:'#aa5500', l:'#aaaaaa',
+            d:'#555555', B:'#5555ff', G:'#55ff55', C:'#55ffff', R:'#ff5555', M:'#ff55ff', Y:'#ffff55', W:'#ffffff' };
+
+  function R(x, y, w, h, c) {
+    ctx.fillStyle = P[c] || c;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  }
+  function circle(cx, cy, r, c) {
+    for (var y = -r; y <= r; y++) {
+      var w = Math.floor(Math.sqrt(r * r - y * y));
+      R(cx - w, cy + y, 2 * w + 1, 1, c);
+    }
+  }
+  function tri(cx, topY, half, h, c) {
+    for (var i = 0; i < h; i++) { var w = half * 2 * (i + 1) / h; R(cx - w / 2, topY + i, w, 1, c); }
+  }
+  function sky(h, cols) {
+    var bh = Math.ceil(h / cols.length);
+    cols.forEach(function (c, i) { R(0, i * bh, 320, bh, c); });
+  }
+  function lcg(seed) {
+    var s = seed >>> 0;
+    return function () { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  }
+
+  var t = 0; // animation tick
+
+  var STARS = (function () {
+    var r = lcg(7), a = [];
+    for (var i = 0; i < 70; i++) a.push([Math.floor(r() * 320), Math.floor(r() * 110), Math.floor(r() * 7)]);
+    return a;
+  })();
+  function stars() {
+    STARS.forEach(function (s) { if ((t + s[2]) % 9 !== 0) R(s[0], s[1], 1, 1, s[2] % 3 === 0 ? 'Y' : 'W'); });
+  }
+  function cloud(x, y) { R(x, y + 8, 32, 4, 'W'); R(x + 4, y + 4, 24, 8, 'W'); R(x + 10, y, 14, 10, 'W'); }
+
+
+  /* =========================================================
+     SPRITES + SCENES  (Planet Hopper)
+     ========================================================= */
+  function ball(cx, cy, r, cols, shade) {
+    for (var y = -r; y <= r; y++) {
+      var w = Math.floor(Math.sqrt(r * r - y * y));
+      var ci = Math.min(cols.length - 1, Math.floor((y + r) / (2 * r + 1) * cols.length));
+      R(cx - w, cy + y, 2 * w + 1, 1, cols[ci]);
+      if (shade) { var sx = Math.floor(w * 0.45); R(cx + sx, cy + y, Math.max(1, w - sx + 1), 1, shade); }
+    }
+  }
+  function ring(cx, cy, a, b, col, front) {
+    for (var x = -a; x <= a; x++) {
+      var yy = b * Math.sqrt(1 - (x * x) / (a * a));
+      R(cx + x, cy + (front ? yy : -yy), 1, 2, col);
+    }
+  }
+  var SHADE = 'rgba(0,0,0,0.32)';
+
+  // The Sparrow: our little ship, flying to the right.
+  function ship(x, y, o) {
+    o = o || {};
+    if (o.flame !== false) {
+      var fl = (t % 2) ? 8 : 5;
+      R(x - fl, y + 5, fl, 4, 'Y'); R(x - fl - 3, y + 6, 3, 2, 'R');
+    }
+    R(x + 2, y, 6, 3, 'R'); R(x + 2, y + 11, 6, 3, 'R');
+    R(x, y + 3, 20, 8, 'W'); R(x + 6, y + 3, 2, 8, 'R');
+    R(x + 20, y + 4, 3, 6, 'R'); R(x + 23, y + 5, 2, 4, 'R'); R(x + 25, y + 6, 1, 2, 'R');
+    circle(x + 13, y + 7, 2, 'C');
+    R(x, y + 3, 20, 1, 'l'); R(x, y + 10, 20, 1, 'l');
+  }
+
+  // Little landing module. (x, y) is the bottom center of the legs.
+  function lander(x, y, thrust) {
+    R(x - 6, y - 11, 12, 8, 'l'); R(x - 6, y - 11, 12, 1, 'W');
+    circle(x, y - 8, 2, 'C');
+    R(x - 8, y - 3, 16, 1, 'd');
+    R(x - 8, y - 3, 2, 4, 'd'); R(x + 6, y - 3, 2, 4, 'd');
+    R(x - 9, y, 4, 1, 'd'); R(x + 5, y, 4, 1, 'd');
+    if (thrust) { R(x - 2, y - 2, 4, 5 + (t % 2) * 4, 'Y'); R(x - 1, y + 3, 2, 4, 'R'); }
+  }
+
+  function rocketV(x, by, flame) {
+    R(x - 12, by - 22, 6, 22, 'R'); R(x + 6, by - 22, 6, 22, 'R');
+    R(x - 6, by - 62, 12, 56, 'W'); R(x + 2, by - 62, 4, 56, 'l');
+    R(x - 6, by - 6, 12, 6, 'd');
+    tri(x, by - 80, 6, 18, 'R');
+    R(x - 6, by - 30, 12, 4, 'R');
+    circle(x, by - 46, 3, 'C');
+    if (flame) { R(x - 4, by, 8, 10 + (t % 2) * 6, 'Y'); R(x - 2, by + 8, 4, 8, 'R'); }
+  }
+
+  var NODES = [[50,92],[68,68],[98,102],[130,78],[168,94],[208,68],[246,98],[284,76]];
+  function routePos(f) {
+    f = Math.max(0, Math.min(7, f));
+    var i = Math.min(6, Math.floor(f)), k = f - i;
+    return [NODES[i][0] + (NODES[i + 1][0] - NODES[i][0]) * k, NODES[i][1] + (NODES[i + 1][1] - NODES[i][1]) * k];
+  }
+
+  var view = { name: 'title' };
+  var LD = null; // lander minigame state
+
+  function mapF() {
+    if (view.loop) return ((t % 110) / 110) * 7;
+    if (view.travel) {
+      var el = reduce ? 1e9 : (performance.now() - view.travel.start);
+      var p = Math.min(1, el / 1600);
+      var e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      view.moving = p < 1;
+      return view.travel.from + (view.travel.to - view.travel.from) * e;
+    }
+    view.moving = false;
+    return view.at || 0;
+  }
+
+  var ROCKS = (function () {
+    var r = lcg(11), a = [];
+    for (var i = 0; i < 18; i++) a.push({ x: Math.floor(r() * 360), y: 8 + Math.floor(r() * 144), r: 2 + Math.floor(r() * 7), s: 0.6 + r() * 2.2 });
+    return a;
+  })();
+
+  function bob() { return reduce ? 0 : Math.round(Math.sin(t / 4) * 4); }
+  function space() { R(0, 0, 320, 160, 'k'); stars(); }
+
+  var SCENES = {
+    title: function () {
+      space();
+      ball(60, 178, 96, ['b']);
+      circle(36, 118, 12, 'g'); circle(56, 112, 9, 'g'); circle(92, 128, 14, 'g'); circle(24, 146, 10, 'g'); circle(70, 136, 8, 'g');
+      R(20, 126, 18, 3, 'W'); R(60, 104, 14, 3, 'W'); R(82, 142, 20, 3, 'W'); R(110, 118, 12, 3, 'W');
+      ball(268, 38, 10, ['l'], SHADE); R(262, 34, 4, 2, 'd'); R(270, 42, 3, 2, 'd');
+      ship(((t * 3) % 400) - 40, 64 + bob());
+    },
+    launch: function () {
+      R(0, 0, 320, 160, 'k'); sky(100, ['k', 'k', 'b']); stars();
+      R(0, 128, 320, 32, 'd'); R(0, 128, 320, 3, 'l');
+      R(196, 52, 8, 76, 'l'); R(228, 60, 4, 68, 'l');
+      for (var i = 0; i < 6; i++) R(196, 58 + i * 12, 36, 2, 'l');
+      rocketV(150, 128, false);
+      var k = reduce ? 3 : Math.floor(t / 4) % 4;
+      for (var j = 0; j < 3; j++) { R(20 + j * 18, 20, 14, 14, 'k'); R(21 + j * 18, 21, 12, 12, k > j ? (j === 2 ? 'G' : 'Y') : 'd'); }
+    },
+    liftoff: function () {
+      R(0, 0, 320, 160, 'k'); sky(100, ['k', 'k', 'b']); stars();
+      R(0, 128, 320, 32, 'd'); R(0, 128, 320, 3, 'l');
+      var up = reduce ? 40 : (t * 5) % 150;
+      rocketV(150, 128 - up, true);
+      for (var i = 0; i < 6; i++) { circle(120 + i * 16 + ((t + i) % 3), 130 + (i % 2) * 4, 5 + (up < 40 ? 3 : 0), (i % 2) ? 'l' : 'W'); }
+    },
+    moon: function () {
+      space();
+      ball(250, 36, 15, ['b'], SHADE); circle(246, 34, 5, 'g'); circle(254, 42, 3, 'g');
+      R(0, 112, 320, 48, 'l'); R(0, 112, 320, 2, 'W');
+      [[30,126,36],[120,140,50],[220,122,40],[270,146,30]].forEach(function (c) { R(c[0], c[1], c[2], 4, 'd'); R(c[0] + 3, c[1] + 4, c[2] - 6, 2, 'd'); });
+      lander(150, 118, false);
+      R(204, 90, 1, 28, 'W'); R(205, 90, 12, 8, 'R'); R(205, 94, 12, 2, 'W');
+    },
+    mars: function () {
+      sky(104, ['n', 'n', 'R']); circle(262, 30, 5, 'Y');
+      tri(244, 52, 78, 52, '#8a1500'); tri(90, 78, 52, 26, 'n');
+      R(0, 104, 320, 56, 'r'); R(0, 104, 320, 2, 'R');
+      R(40, 130, 10, 6, 'd'); R(190, 138, 14, 8, 'd'); R(262, 126, 8, 5, 'k'); R(150, 144, 9, 5, 'd');
+      lander(120, 114, false);
+    },
+    belt: function () {
+      space();
+      ROCKS.forEach(function (k) {
+        var x = (((k.x - (reduce ? 0 : t) * k.s) % 360) + 360) % 360 - 20;
+        circle(x, k.y, k.r, 'd'); circle(x - 1, k.y - 1, Math.max(1, k.r - 2), 'l'); R(x + 1, k.y + 1, 1, 1, 'k');
+      });
+      ship(120, 68 + bob());
+    },
+    jupiter: function () {
+      space();
+      ball(236, 84, 86, ['n', 'Y', 'n', 'W', 'n', 'Y', 'n', 'R', 'n', 'Y', 'n'], SHADE);
+      circle(212, 108, 9, 'R'); circle(212, 108, 5, 'n'); circle(212, 108, 2, 'R');
+      ship(40, 70 + bob());
+    },
+    saturn: function () {
+      space();
+      ring(200, 84, 94, 18, 'l', false); ring(200, 84, 78, 14, 'Y', false);
+      ball(200, 84, 40, ['Y', 'n', 'Y', 'l', 'Y', 'n'], SHADE);
+      ring(200, 84, 94, 18, 'l', true); ring(200, 84, 78, 14, 'Y', true);
+      ship(24, 66 + bob());
+    },
+    uranus: function () {
+      space();
+      ball(210, 84, 40, ['C', 'c', 'C', 'C'], SHADE);
+      for (var y = -66; y <= 66; y++) { var xx = 13 * Math.sqrt(1 - (y * y) / 4356); R(210 + xx, 84 + y, 2, 1, 'W'); R(210 - xx, 84 + y, 2, 1, 'W'); }
+      ship(36, 70 + bob());
+    },
+    neptune: function () {
+      space();
+      ball(214, 84, 42, ['b', 'B', 'b', 'b', 'B', 'b'], SHADE);
+      R(188, 70, 28, 2, 'W'); R(222, 96, 24, 2, 'W'); R(200, 112, 18, 2, 'W'); circle(198, 98, 6, 'k');
+      ball(80, 34, 6, ['l'], SHADE);
+      ship(32, 76 + bob());
+    },
+    win: function () {
+      space();
+      ball(252, 118, 64, ['b', 'B', 'b'], SHADE);
+      var fxs = [60, 250, 110, 190], fys = [40, 36, 74, 30], cc = ['Y', 'R', 'C', 'M'];
+      for (var b = 0; b < 4; b++) {
+        var ph = (t + b * 5) % 18;
+        if (ph < 12 || reduce) {
+          var r = (reduce ? 8 : ph) * 3;
+          for (var k = 0; k < 12; k++) { var a = k / 12 * Math.PI * 2; R(fxs[b] + Math.cos(a) * r, fys[b] + Math.sin(a) * r, 2, 2, cc[(b + k) % 4]); }
+        }
+      }
+      for (var i = 0; i < 36; i++) R((i * 37) % 320, reduce ? (i * 53) % 160 : ((i * 53) + t * 3) % 160, 2, 2, cc[i % 4]);
+      ship(140, 80 + bob());
+    },
+    dead: function () {
+      R(0, 0, 320, 160, 'k');
+      STARS.forEach(function (s, i) { if (i % 2) R(s[0], s[1], 1, 1, 'd'); });
+      ball(250, 44, 26, ['d'], 'rgba(0,0,0,0.4)');
+      var sx = 110 + (reduce ? 0 : Math.round(Math.sin(t / 12) * 8));
+      ship(sx, 76, { flame: false });
+      if (t % 8 < 4) R(sx + 9, 73, 2, 2, 'R');
+    },
+    lander: function () {
+      var L = LD, moon = !L || L.world === 'moon';
+      if (moon) {
+        space();
+        ball(268, 34, 12, ['b'], SHADE); circle(264, 32, 4, 'g');
+        R(0, 140, 320, 20, 'l'); R(0, 140, 320, 2, 'W');
+        [[20,148,30],[110,152,44],[200,146,36],[270,150,40]].forEach(function (c) { R(c[0], c[1], c[2], 3, 'd'); });
+      } else {
+        sky(110, ['n', 'n', 'R']); circle(280, 24, 4, 'Y');
+        tri(230, 70, 80, 70, '#8a1500'); tri(70, 102, 50, 38, 'n');
+        R(0, 140, 320, 20, 'r'); R(0, 140, 320, 2, 'R'); R(40, 150, 10, 5, 'd'); R(230, 148, 14, 6, 'd');
+      }
+      if (!L) { lander(160, 100, false); return; }
+      R(L.pad - 26, 139, 52, 3, 'W');
+      R(L.pad - 26, 137, 3, 2, (t % 6 < 3) ? 'G' : 'Y'); R(L.pad + 23, 137, 3, 2, (t % 6 < 3) ? 'Y' : 'G');
+      var h = Math.max(0, Math.min(100, L.vy * 100 / 60));
+      R(6, 20, 8, 100, 'd'); R(6, 120 - h, 8, h, L.vy <= 22 ? 'G' : 'R'); R(3, 120 - 22 * 100 / 60, 14, 1, 'Y');
+      R(306, 20, 8, 100, 'd'); R(306, 120 - L.fuel, 8, L.fuel, 'C');
+      lander(Math.round(L.x), Math.round(L.y), L.thrusting);
+    },
+    map: function () {
+      space();
+      circle(-4, 86, 34, 'R'); circle(-4, 86, 28, 'Y');
+      for (var i = 0; i < 7; i++) {
+        var a = NODES[i], b = NODES[i + 1], steps = Math.floor(Math.hypot(b[0] - a[0], b[1] - a[1]) / 5);
+        for (var s = 0; s <= steps; s++) R(a[0] + (b[0] - a[0]) * s / steps - 1, a[1] + (b[1] - a[1]) * s / steps - 1, 2, 2, 'd');
+      }
+      var f = mapF(), cur = Math.round(f);
+      var rad = [5, 4, 5, 8, 10, 7, 6, 6];
+      for (var n = 0; n < 8; n++) {
+        var mc = n < cur ? 'G' : (n === cur ? ((t % 6 < 3) ? 'W' : 'R') : 'd');
+        circle(NODES[n][0], NODES[n][1], rad[n] + 3, mc); circle(NODES[n][0], NODES[n][1], rad[n] + 2, 'k');
+      }
+      ball(NODES[0][0], NODES[0][1], 5, ['b']); R(NODES[0][0] - 2, NODES[0][1] - 2, 3, 2, 'g');
+      ball(NODES[1][0], NODES[1][1], 4, ['l']);
+      ball(NODES[2][0], NODES[2][1], 5, ['R']);
+      [[-6,-3],[5,-5],[-3,5],[7,3],[0,-7],[-7,4],[3,7]].forEach(function (d, k) { R(NODES[3][0] + d[0], NODES[3][1] + d[1], 2 + (k % 2), 2, k % 2 ? 'l' : 'd'); });
+      ball(NODES[4][0], NODES[4][1], 10, ['n', 'Y', 'n', 'W', 'n']);
+      ring(NODES[5][0], NODES[5][1], 11, 3, 'l', false); ball(NODES[5][0], NODES[5][1], 7, ['Y', 'n', 'Y']); ring(NODES[5][0], NODES[5][1], 11, 3, 'l', true);
+      ball(NODES[6][0], NODES[6][1], 6, ['C', 'c']);
+      ball(NODES[7][0], NODES[7][1], 6, ['b', 'B', 'b']);
+      var pos = routePos(f);
+      ship(pos[0] - 13, pos[1] - 28, { flame: !!(view.loop || view.moving) });
+    }
+  };
+
+  function draw() { (SCENES[view.name] || SCENES.title)(view); }
+  draw();
+  if (!reduce) setInterval(function () { t++; if (!(LD && !LD.done)) draw(); }, 130);
+
+  /* LANDER START */
+  function stepLander(L, dt, inp) {
+    var th = !!inp.thrust && L.fuel > 0;
+    L.vy += (L.g - (th ? 34 : 0)) * dt;
+    L.y += L.vy * dt;
+    if (th) L.fuel = Math.max(0, L.fuel - 14 * dt);
+    L.x = Math.max(8, Math.min(312, L.x + inp.dir * 45 * dt));
+    L.thrusting = th;
+    if (L.y < 12) { L.y = 12; if (L.vy < 0) L.vy = 0; }
+    if (L.y >= 140) {
+      L.y = 140; L.done = true; L.speed = L.vy;
+      L.onPad = Math.abs(L.x - L.pad) <= 26;
+      L.ok = L.vy <= 22 && L.onPad;
+    }
+    return L;
+  }
+  /* LANDER END */
+
+  /* AUDIO START */
+  var NOTE_BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  function freqOf(n) {
+    var m = /^([A-G])(#?)(\d)$/.exec(n);
+    var midi = 12 * (Number(m[3]) + 1) + NOTE_BASE[m[1]] + (m[2] ? 1 : 0);
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+  function parseSeq(str) {
+    var ev = [], pos = 0;
+    str.trim().split(/\s+/).forEach(function (tok) {
+      var p = tok.split(':'), d = Number(p[1]);
+      if (p[0] !== '-') ev.push({ at: pos, f: freqOf(p[0]), d: d });
+      pos += d;
+    });
+    return { events: ev, len: pos };
+  }
+  function mkChan(str) {
+    var q = parseSeq(str), map = {};
+    q.events.forEach(function (e) { map[e.at] = e; });
+    return { map: map, len: q.len };
+  }
+  function mkTrack(d) {
+    var tr = { sd: 60 / d.tempo / 4, loop: d.loop !== false, lead: mkChan(d.lead), harm: mkChan(d.harm), bass: mkChan(d.bass), drums: d.drums || '' };
+    tr.len = tr.lead.len;
+    return tr;
+  }
+
+  var TRACKS = {
+    // Twinkly, adventurous title theme (A minor)
+    title: mkTrack({ tempo: 118,
+      lead: 'A4:2 C5:2 E5:4 A5:4 E5:2 C5:2  G4:2 B4:2 D5:4 G5:4 D5:2 B4:2  F4:2 A4:2 C5:4 F5:4 C5:2 A4:2  E5:4 D5:4 C5:4 B4:2 E5:2',
+      harm: 'A3:2 E4:2 A4:2 E4:2 A3:2 E4:2 A4:2 E4:2  G3:2 D4:2 G4:2 D4:2 G3:2 D4:2 G4:2 D4:2  F3:2 C4:2 F4:2 C4:2 F3:2 C4:2 F4:2 C4:2  E3:2 B3:2 E4:2 B3:2 E3:2 B3:2 E4:2 B3:2',
+      bass: 'A2:8 A2:4 E2:4  G2:8 G2:4 D3:4  F2:8 F2:4 C3:4  E2:8 E2:4 B2:4',
+      drums: 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.k.ssss' }),
+    // Slow, floaty "drifting between planets" loop (C major)
+    trail: mkTrack({ tempo: 100,
+      lead: 'E5:4 -:2 D5:2 C5:4 G4:4  A4:4 -:2 C5:2 E5:8  F5:4 -:2 E5:2 D5:4 A4:4  G4:4 B4:4 C5:8',
+      harm: 'C4:2 G4:2 C5:2 G4:2 C4:2 G4:2 C5:2 G4:2  A3:2 E4:2 A4:2 E4:2 A3:2 E4:2 A4:2 E4:2  F3:2 C4:2 F4:2 C4:2 F3:2 C4:2 F4:2 C4:2  G3:2 D4:2 G4:2 D4:2 C4:8',
+      bass: 'C3:8 G2:8  A2:8 E2:8  F2:8 C3:8  G2:8 C3:8',
+      drums: 'k...h...k...h...' + 'k...h...k...h...' + 'k...h...k...h...' + 'k...h...k...h...' }),
+    // Tense, pulsing loop for the landing minigame (A minor)
+    lander: mkTrack({ tempo: 150,
+      lead: 'A4:2 -:2 A4:2 -:2 C5:2 -:2 E5:2 -:2  D5:2 -:2 D5:2 -:2 C5:2 -:2 B4:2 -:2',
+      harm: 'E4:4 E4:4 E4:4 E4:4  F4:4 F4:4 E4:4 E4:4',
+      bass: 'A2:2 A2:2 A2:2 A2:2 A2:2 A2:2 A2:2 A2:2  D3:2 D3:2 D3:2 D3:2 E2:2 E2:2 E2:2 E2:2',
+      drums: 'k.h.k.h.k.h.k.hh' + 'k.h.k.h.k.h.ssss' }),
+    // Short victory fanfare (plays once)
+    win: mkTrack({ tempo: 140, loop: false,
+      lead: 'A4:2 C5:2 E5:2 A5:4 E5:2 A5:4  C6:4 B5:2 A5:2 A5:8',
+      harm: 'C4:2 E4:2 A4:2 C5:4 A4:2 C5:4  E4:4 D4:2 C4:2 C4:8',
+      bass: 'A2:4 E2:4 A2:4 E2:4  A2:4 E2:4 A2:8',
+      drums: 'k.h.s.h.k.h.s.hh' + 'k.k.s.s.kkkkssss' }),
+    // Short sad tune (plays once)
+    sad: mkTrack({ tempo: 80, loop: false,
+      lead: 'E5:4 C5:4 A4:4 G4:4  A4:12 -:4',
+      harm: 'C4:8 A3:8  A3:12 -:4',
+      bass: 'A2:8 F2:8  A2:12 -:4',
+      drums: '' })
+  };
+
+  function audioCheck() {
+    var bad = [];
+    Object.keys(TRACKS).forEach(function (k) {
+      var t = TRACKS[k];
+      if (t.harm.len !== t.len) bad.push(k + ': harmony length ' + t.harm.len + ' vs ' + t.len);
+      if (t.bass.len !== t.len) bad.push(k + ': bass length ' + t.bass.len + ' vs ' + t.len);
+      if (t.drums.length && t.drums.length !== t.len) bad.push(k + ': drums length ' + t.drums.length + ' vs ' + t.len);
+    });
+    return bad;
+  }
+
+  var Snd = { ctx: null, master: null, bus: null, on: false, want: 'title', cur: null, tr: null, step: 0, next: 0, timer: null, noise: null, p25: null, p50: null };
+
+  function pulseWave(ctx, duty) {
+    var n = 32, re = new Float32Array(n + 1), im = new Float32Array(n + 1);
+    for (var k = 1; k <= n; k++) re[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+    return ctx.createPeriodicWave(re, im);
+  }
+
+  Snd.init = function () {
+    if (this.ctx) return true;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.3;
+      this.master.connect(this.ctx.destination);
+      var sr = this.ctx.sampleRate, buf = this.ctx.createBuffer(1, sr, sr), d = buf.getChannelData(0);
+      for (var i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
+      this.noise = buf;
+      this.p25 = pulseWave(this.ctx, 0.25);
+      this.p50 = pulseWave(this.ctx, 0.5);
+    } catch (e) { this.ctx = null; return false; }
+    return true;
+  };
+
+  Snd.note = function (dest, kind, f, when, dur, vol, slideTo) {
+    var c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    if (kind === 'p25') o.setPeriodicWave(this.p25);
+    else if (kind === 'p50') o.setPeriodicWave(this.p50);
+    else o.type = kind === 'saw' ? 'sawtooth' : 'triangle';
+    o.frequency.setValueAtTime(f, when);
+    if (slideTo) o.frequency.linearRampToValueAtTime(slideTo, when + dur);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.006);
+    g.gain.setValueAtTime(vol, when + Math.max(0.01, dur - 0.03));
+    g.gain.linearRampToValueAtTime(0.0001, when + dur);
+    o.connect(g); g.connect(dest);
+    o.start(when); o.stop(when + dur + 0.02);
+  };
+
+  Snd.drum = function (kind, when) {
+    var c = this.ctx, g = c.createGain();
+    if (kind === 'k') {
+      var o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, when);
+      o.frequency.exponentialRampToValueAtTime(45, when + 0.09);
+      g.gain.setValueAtTime(0.2, when);
+      g.gain.exponentialRampToValueAtTime(0.001, when + 0.11);
+      o.connect(g); g.connect(this.bus);
+      o.start(when); o.stop(when + 0.13);
+      return;
+    }
+    var src = c.createBufferSource(), f = c.createBiquadFilter(), dur = kind === 's' ? 0.1 : 0.035;
+    src.buffer = this.noise;
+    f.type = kind === 's' ? 'bandpass' : 'highpass';
+    f.frequency.value = kind === 's' ? 1800 : 6500;
+    g.gain.setValueAtTime(kind === 's' ? 0.07 : 0.035, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    src.connect(f); f.connect(g); g.connect(this.bus);
+    src.start(when, Math.random() * 0.5, dur + 0.02);
+  };
+
+  Snd.playStep = function (tr, i, when) {
+    var e = tr.lead.map[i];
+    if (e) this.note(this.bus, 'p25', e.f, when, e.d * tr.sd * 0.92, 0.085);
+    e = tr.harm.map[i];
+    if (e) this.note(this.bus, 'p50', e.f, when, e.d * tr.sd * 0.85, 0.04);
+    e = tr.bass.map[i];
+    if (e) this.note(this.bus, 'tri', e.f, when, e.d * tr.sd * 0.95, 0.12);
+    var d = tr.drums.charAt(i);
+    if (d === 'k' || d === 's' || d === 'h') this.drum(d, when);
+  };
+
+  Snd.tick = function () {
+    var c = this.ctx, tr = this.tr;
+    if (!c || !tr) return;
+    while (this.next < c.currentTime + 0.15) {
+      this.playStep(tr, this.step, this.next);
+      this.next += tr.sd;
+      this.step++;
+      if (this.step >= tr.len) {
+        if (tr.loop) this.step = 0;
+        else { clearInterval(this.timer); this.timer = null; this.tr = null; return; }
+      }
+    }
+  };
+
+  Snd.fadeBus = function () {
+    var old = this.bus;
+    if (!old) return;
+    var now = this.ctx.currentTime;
+    try {
+      old.gain.cancelScheduledValues(now);
+      old.gain.setValueAtTime(old.gain.value, now);
+      old.gain.linearRampToValueAtTime(0, now + 0.08);
+    } catch (e) { /* ignore */ }
+    setTimeout(function () { try { old.disconnect(); } catch (e) { /* ignore */ } }, 250);
+    this.bus = null;
+  };
+
+  Snd.play = function (key) {
+    this.want = key;
+    if (!this.on || !this.ctx || this.cur === key) return;
+    this.cur = key;
+    clearInterval(this.timer);
+    this.fadeBus();
+    this.bus = this.ctx.createGain();
+    this.bus.connect(this.master);
+    this.tr = TRACKS[key];
+    this.step = 0;
+    this.next = this.ctx.currentTime + 0.08;
+    var me = this;
+    this.timer = setInterval(function () { me.tick(); }, 30);
+  };
+
+  Snd.halt = function () {
+    clearInterval(this.timer); this.timer = null; this.tr = null; this.cur = null;
+    if (this.ctx) this.fadeBus();
+  };
+
+  Snd.set = function (v) {
+    if (v && !this.init()) return;
+    this.on = v;
+    try { localStorage.setItem('roadToLawSound', v ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (v) { this.ctx.resume(); this.cur = null; this.play(this.want); sfx('blip'); }
+    else this.halt();
+    sndLabel();
+  };
+
+  var SFX = {
+    blip:    function (S0) { Snd.note(Snd.master, 'p50', 660, S0, 0.05, 0.09); },
+    correct: function (S0) { Snd.note(Snd.master, 'p50', 784, S0, 0.09, 0.1); Snd.note(Snd.master, 'p50', 1047, S0 + 0.09, 0.18, 0.1); },
+    wrong:   function (S0) { Snd.note(Snd.master, 'saw', 196, S0, 0.14, 0.06); Snd.note(Snd.master, 'saw', 147, S0 + 0.13, 0.28, 0.06); },
+    pass:    function (S0) { [523, 659, 784, 1047].forEach(function (f, i) { Snd.note(Snd.master, 'p25', f, S0 + i * 0.08, i === 3 ? 0.25 : 0.09, 0.09); }); },
+    fail:    function (S0) { [392, 330, 262].forEach(function (f, i) { Snd.note(Snd.master, 'p50', f, S0 + i * 0.13, i === 2 ? 0.3 : 0.12, 0.09); }); },
+    gavel:   function (S0) {
+      Snd.note(Snd.master, 'tri', 130, S0, 0.07, 0.25, 70);
+      var c = Snd.ctx, src = c.createBufferSource(), g = c.createGain();
+      src.buffer = Snd.noise; g.gain.setValueAtTime(0.12, S0); g.gain.exponentialRampToValueAtTime(0.001, S0 + 0.06);
+      src.connect(g); g.connect(Snd.master); src.start(S0, 0.2, 0.08);
+    },
+    stamp:   function (S0) { Snd.note(Snd.master, 'tri', 110, S0, 0.2, 0.3, 45); Snd.note(Snd.master, 'saw', 98, S0, 0.2, 0.04, 60); }
+  };
+
+  function sfx(name, delay) {
+    if (!Snd.on || !Snd.ctx || !SFX[name]) return;
+    try { SFX[name](Snd.ctx.currentTime + (delay || 0)); } catch (e) { /* ignore */ }
+  }
+
+  /* AUDIO END */
+  // Extra sounds for this game: engine rumble, launch, crash.
+  SFX.launch = function (S0) {
+    Snd.note(Snd.master, 'saw', 90, S0, 1.3, 0.07, 520);
+    var c = Snd.ctx, src = c.createBufferSource(), g = c.createGain();
+    src.buffer = Snd.noise; g.gain.setValueAtTime(0.0001, S0); g.gain.linearRampToValueAtTime(0.18, S0 + 0.4); g.gain.linearRampToValueAtTime(0.0001, S0 + 1.3);
+    src.connect(g); g.connect(Snd.master); src.start(S0, 0, 1.3);
+  };
+  SFX.crash = function (S0) {
+    Snd.note(Snd.master, 'saw', 140, S0, 0.4, 0.07, 40);
+    var c = Snd.ctx, src = c.createBufferSource(), g = c.createGain();
+    src.buffer = Snd.noise; g.gain.setValueAtTime(0.2, S0); g.gain.exponentialRampToValueAtTime(0.001, S0 + 0.45);
+    src.connect(g); g.connect(Snd.master); src.start(S0, 0.1, 0.5);
+  };
+  Snd.thr = null;
+  Snd.thruster = function (on) {
+    if (!this.ctx || !this.on) on = false;
+    if (on && !this.thr) {
+      var c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      s.buffer = this.noise; s.loop = true;
+      f.type = 'lowpass'; f.frequency.value = 700; g.gain.value = 0.12;
+      s.connect(f); f.connect(g); g.connect(this.master); s.start();
+      this.thr = { s: s, g: g };
+    } else if (!on && this.thr) {
+      try { this.thr.g.gain.setValueAtTime(0, this.ctx.currentTime); this.thr.s.stop(); } catch (e) { /* ignore */ }
+      this.thr = null;
+    }
+  };
+  var baseHalt = Snd.halt;
+  Snd.halt = function () { this.thruster(false); baseHalt.call(this); };
+
+  function trackFor(scene) {
+    return scene === 'title' ? 'title' : scene === 'win' ? 'win' : scene === 'dead' ? 'sad' : scene === 'lander' ? 'lander' : 'trail';
+  }
+
+  /* =========================================================
+     GAME DATA
+     ========================================================= */
+  var STOPS = [
+    { name: 'Launch Pad',    teaser: 'Your ship, the Sparrow, is fueled and ready on Earth.' },
+    { name: 'The Moon',      teaser: 'Earth\'s closest neighbor. Time to try a landing!' },
+    { name: 'Mars',          teaser: 'The Red Planet. Its gravity is stronger than the Moon\'s, so landing is harder.' },
+    { name: 'Asteroid Belt', teaser: 'A wide ring of space rocks lies between Mars and Jupiter.' },
+    { name: 'Jupiter',       teaser: 'The giant of the solar system. Its gravity is powerful.' },
+    { name: 'Saturn',        teaser: 'The planet with the famous rings.' },
+    { name: 'Uranus',        teaser: 'A cold, blue-green world that spins on its side.' },
+    { name: 'Neptune',       teaser: 'The last planet on the trail. You are almost there!' }
+  ];
+
+  var LEG = [null,
+    { fuel: -4,  oxygen: -4,  morale: -3 },
+    { fuel: -9,  oxygen: -8,  morale: -3 },
+    { fuel: -6,  oxygen: -6,  morale: -3 },
+    { fuel: -7,  oxygen: -8,  morale: -3 },
+    { fuel: -8,  oxygen: -10, morale: -4 },
+    { fuel: -8,  oxygen: -10, morale: -4 },
+    { fuel: -7,  oxygen: -8,  morale: -4 }
+  ];
+
+  var REASONS = {
+    fuel:   { text: 'The Sparrow ran out of fuel and cannot reach the next planet. A rescue ship will bring the crew home safely.',
+              tip: 'Land gently, use gravity assists, and avoid wrong turns to save fuel.' },
+    oxygen: { text: 'The air supply got too low, so mission control ordered the Sparrow to turn around and head home.',
+              tip: 'Choices that make or recycle air can keep a long trip going.' },
+    morale: { text: 'The crew was tired and homesick, so they voted to turn the Sparrow around.',
+              tip: 'Good news, breaks, and fun moments keep a crew going on a long trip.' }
+  };
+
+  /* =========================================================
+     STATE + HELPERS
+     ========================================================= */
+  function newState() {
+    return { fuel: 80, oxygen: 70, morale: 60, right: 0, total: 0, stop: 0, events: 0, used: [], landed: 0, hud: false };
+  }
+  var S = newState();
+
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
+  function sgn(n) { return (n > 0 ? '+' : '') + n; }
+
+  var KEYS3 = [['fuel', 'FUEL'], ['oxygen', 'OXYGEN'], ['morale', 'MORALE']];
+  function fxText(fx) {
+    var parts = [];
+    KEYS3.forEach(function (k) {
+      if (fx[k[0]]) parts.push('<span class="' + (fx[k[0]] > 0 ? 'good' : 'bad') + '">' + k[1] + ' ' + sgn(fx[k[0]]) + '</span>');
+    });
+    return parts.length ? '<p class="fx">' + parts.join(' ') + '</p>' : '';
+  }
+  function apply(fx) {
+    KEYS3.forEach(function (k) { S[k[0]] = clamp(S[k[0]] + (fx[k[0]] || 0), 0, 100); });
+    return fxText(fx);
+  }
+  function meter(n) { var f = Math.round(n / 10); return new Array(f + 1).join('\u2588') + new Array(11 - f).join('\u2591'); }
+  function checkEnd() {
+    if (S.fuel <= 0) return 'fuel';
+    if (S.oxygen <= 0) return 'oxygen';
+    if (S.morale <= 0) return 'morale';
+    return null;
+  }
+
+  /* =========================================================
+     RENDERING
+     ========================================================= */
+  var textEl = $('text'), choicesEl = $('choices'), hudEl = $('hud'), frameEl = document.querySelector('.frame');
+  var curChoices = [];
+  function choose(c) { sfx('blip'); c.run(); }
+
+  function hudBit(label, v, cls) {
+    return '<span><span class="lbl">' + label + '</span> <span class="' + (v <= 20 ? 'low' : cls) + '">' + meter(v) + '</span> ' + v + '</span>';
+  }
+  function updateHud() {
+    if (!S.hud) { hudEl.hidden = true; return; }
+    hudEl.hidden = false;
+    hudEl.innerHTML = hudBit('FUEL', S.fuel, 'gold') + hudBit('OXYGEN', S.oxygen, 'hint') + hudBit('MORALE', S.morale, 'good');
+  }
+
+  function render(o) {
+    if (o.scene !== 'lander' && LD) stopLander();
+    view = { name: o.scene || 'title', travel: o.travel, loop: o.loop, at: (o.at != null ? o.at : S.stop) };
+    draw();
+    updateHud();
+    Snd.play(trackFor(view.name));
+
+    var html = '';
+    if (o.big) html += '<h1 class="title">' + o.big + '</h1>';
+    if (o.title) html += '<h2>' + o.title + '</h2>';
+    (o.body || []).forEach(function (p) {
+      if (!p) return;
+      html += (typeof p === 'string' && p.replace(/^\s+/, '').charAt(0) === '<') ? p : '<p>' + p + '</p>';
+    });
+    textEl.innerHTML = html;
+
+    choicesEl.innerHTML = '';
+    curChoices = o.choices || [];
+    curChoices.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice';
+      b.innerHTML = '<span class="n">' + (i + 1) + '.</span> ' + c.label;
+      b.addEventListener('click', function () { choose(c); });
+      choicesEl.appendChild(b);
+    });
+
+    if (frameEl.getBoundingClientRect().top < 0) frameEl.scrollIntoView({ block: 'start' });
+    try { textEl.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (LD && !LD.done && /^( |ArrowUp|ArrowLeft|ArrowRight|w|a|d|W|A|D)$/.test(e.key)) return;
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'm' || e.key === 'M') { Snd.set(!Snd.on); return; }
+    var n = parseInt(e.key, 10), idx = -1;
+    if (n >= 1 && n <= 9) idx = n - 1;
+    else if ((e.key === 'Enter' || e.key === ' ') && curChoices.length === 1 && document.activeElement.tagName !== 'BUTTON') idx = 0;
+    if (idx >= 0 && curChoices[idx]) { e.preventDefault(); choose(curChoices[idx]); }
+  });
+
+  /* =========================================================
+     SCREEN HELPERS
+     ========================================================= */
+  function go(fn) {
+    if (S.hud) { var e = checkEnd(); if (e) return over(e); }
+    fn();
+  }
+
+  function info(o) {
+    render({ scene: o.scene, title: o.title, body: o.body,
+             choices: [{ label: o.btn || 'Continue', run: function () { go(o.next); } }] });
+  }
+
+  function ask(c) {
+    render({ scene: c.scene, title: c.title, body: c.body,
+      choices: c.options.map(function (o) {
+        return { label: o.label, run: function () {
+          if (o.set) o.set();
+          var r = o.roll ? o.roll() : { fx: o.fx, msg: o.msg };
+          var fxh = apply(r.fx || {});
+          render({ scene: c.rscene || c.scene, title: c.resultTitle || 'RESULT', body: [r.msg, fxh],
+                   choices: [{ label: 'Continue', run: function () { go(c.next); } }] });
+        } };
+      }) });
+  }
+
+  function quiz(c) {
+    var opts = shuffle(c.options.slice());
+    render({ scene: c.scene, title: c.title, body: c.body.concat(['<p class="q">' + c.q + '</p>']),
+      choices: opts.map(function (o) {
+        return { label: o.t, run: function () {
+          S.total++;
+          sfx(o.ok ? 'correct' : 'wrong', 0.08);
+          var head, fx, line;
+          if (o.ok) { S.right++; fx = { morale: 5 }; head = '<p class="good">CORRECT!</p>'; line = c.right; }
+          else      { fx = { fuel: -4, morale: -3 }; head = '<p class="bad">NOT QUITE.</p>'; line = c.wrong; }
+          var h = apply(fx);
+          render({ scene: c.scene, title: c.title, body: [head, line, h],
+                   choices: [{ label: 'Continue', run: function () { go(c.next); } }] });
+        } };
+      }) });
+  }
+
+  /* ---------- trail map ---------- */
+  function travel(i) {
+    S.stop = i;
+    var fxh = i > 0 ? apply(LEG[i]) : '';
+    render({ scene: 'map', travel: { from: Math.max(0, i - 1), to: i, start: performance.now() }, at: i,
+      title: 'STOP ' + (i + 1) + ' OF 8',
+      body: ['<b class="gold">' + STOPS[i].name.toUpperCase() + '</b>', STOPS[i].teaser,
+             i > 0 ? '<span class="hint">The trip uses fuel and air, and the long days wear on the crew.</span>' : '', fxh],
+      choices: [{ label: 'Continue', run: function () { go(STAGES[i]); } }] });
+  }
+  function nextStop(i) {
+    go(function () {
+      if (i >= 1 && i <= 5) maybeEvent(function () { travel(i + 1); });
+      else travel(i + 1);
+    });
+  }
+
+  /* ---------- mission over ---------- */
+  function over(reason) {
+    var r = REASONS[reason];
+    render({ scene: 'dead', title: 'MISSION ABORTED',
+      body: [r.text, '<span class="hint">TIP: ' + r.tip + '</span>',
+             'You reached <b class="gold">STOP ' + (S.stop + 1) + ' of 8: ' + STOPS[S.stop].name + '</b>.'],
+      choices: [
+        { label: 'Try the mission again', run: begin },
+        { label: 'Learn the trail', run: function () { recap(function () { over(reason); }); } }
+      ] });
+  }
+
+  /* ---------- recap ---------- */
+  function recap(back) {
+    render({ scene: 'map', loop: true, title: 'THE SOLAR SYSTEM TRAIL',
+      body: [
+        '<ol class="steps">' +
+        '<li><b class="gold">EARTH.</b> Rockets must reach about 11 km per second to break free of Earth\'s gravity.</li>' +
+        '<li><b class="gold">THE MOON.</b> Gravity is about one-sixth of Earth\'s. With almost no air, the sky is black.</li>' +
+        '<li><b class="gold">MARS.</b> Rusty iron dust makes it red. Gravity is about 38% of Earth\'s.</li>' +
+        '<li><b class="gold">ASTEROID BELT.</b> Rocky leftovers between Mars and Jupiter. They are far apart.</li>' +
+        '<li><b class="gold">JUPITER.</b> The biggest planet, mostly hydrogen and helium gas. Ships can use its gravity for a speed boost.</li>' +
+        '<li><b class="gold">SATURN.</b> Its rings are chunks of ice and rock. It is light enough to float in water, if you had a big enough bathtub!</li>' +
+        '<li><b class="gold">URANUS.</b> An ice giant that spins tilted on its side.</li>' +
+        '<li><b class="gold">NEPTUNE.</b> The farthest planet, with the fastest winds. Pluto is now called a dwarf planet.</li>' +
+        '</ol>',
+        '<span class="hint">The planets in order from the Sun: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune. Mercury and Venus are closer to the Sun than Earth, so they are not on this trip.</span>'
+      ],
+      choices: [{ label: 'Back', run: back }] });
+  }
+
+  /* =========================================================
+     LANDER MINIGAME
+     ========================================================= */
+  var KEYS = { thrust: false, left: false, right: false };
+  var PTR = { thrust: false, left: false, right: false };
+
+  function landInput() {
+    return { thrust: KEYS.thrust || PTR.thrust,
+             dir: ((KEYS.right || PTR.right) ? 1 : 0) - ((KEYS.left || PTR.left) ? 1 : 0) };
+  }
+  function stopLander() {
+    if (LD && LD.raf) cancelAnimationFrame(LD.raf);
+    LD = null;
+    KEYS.thrust = KEYS.left = KEYS.right = false;
+    PTR.thrust = PTR.left = PTR.right = false;
+    Snd.thruster(false);
+  }
+
+  function landerIntro(world, next) {
+    var moon = world === 'moon';
+    render({ scene: world, title: (moon ? 'LAND ON THE MOON' : 'LAND ON MARS'),
+      body: [moon ? 'The Moon\'s gravity is weak, so a lander falls slowly. This is the easiest landing on the trail.'
+                  : 'Mars has more gravity than the Moon, so the lander falls faster and needs more thrust. It is trickier!',
+             'Do you want to fly the lander yourself?'],
+      choices: [
+        { label: 'Land by hand', run: function () { startLander(world, next); } },
+        { label: 'Auto-land (safe, but uses 8 fuel)', run: function () {
+            var h = apply({ fuel: -8 });
+            info({ scene: world, title: 'AUTO-LAND', body: ['The computer sets the Sparrow down gently. Safe, but it burns extra fuel.', h], next: next });
+          } }
+      ] });
+  }
+
+  function startLander(world, next) {
+    var g = world === 'moon' ? 7 : 16;
+    var x = 40 + rnd(240), pad = 50 + rnd(220);
+    while (Math.abs(pad - x) < 50) pad = 50 + rnd(220);
+    LD = { world: world, g: g, x: x, y: 22, vy: 0, fuel: 100, pad: pad, done: false, thrusting: false, next: next, last: performance.now(), raf: 0 };
+    render({ scene: 'lander', title: world === 'moon' ? 'MOON LANDING' : 'MARS LANDING',
+      body: ['Hold <b class="gold">SPACE</b> (or the THRUST button) to fire the engine. Use the <b class="gold">left and right arrow keys</b> (or buttons) to move sideways.',
+             'Land on the pad, with the speed bar <b class="gold">below the yellow line</b>. Gravity pulls you down, so use short bursts to slow down!',
+             '<p id="tele" class="hint" aria-hidden="true"></p>'],
+      choices: [] });
+    mountControls();
+    LD.raf = requestAnimationFrame(landLoop);
+  }
+
+  function mountControls() {
+    choicesEl.innerHTML =
+      '<div class="ctlrow">' +
+      '<button type="button" class="ctl" data-k="left" aria-label="Move left">&#9664;</button>' +
+      '<button type="button" class="ctl big" data-k="thrust">THRUST</button>' +
+      '<button type="button" class="ctl" data-k="right" aria-label="Move right">&#9654;</button>' +
+      '</div>' +
+      '<button type="button" class="choice" id="autoland"><span class="n">&gt;</span> Auto-land instead (uses 8 fuel)</button>';
+    Array.prototype.forEach.call(choicesEl.querySelectorAll('.ctl'), function (b) {
+      var k = b.getAttribute('data-k');
+      function down(e) { e.preventDefault(); PTR[k] = true; b.classList.add('on'); }
+      function up() { PTR[k] = false; b.classList.remove('on'); }
+      b.addEventListener('pointerdown', down);
+      b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up);
+      b.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    });
+    $('autoland').addEventListener('click', function () {
+      var l = LD; if (!l) return;
+      var nx = l.next, w = l.world;
+      stopLander();
+      var h = apply({ fuel: -8 });
+      info({ scene: w, title: 'AUTO-LAND', body: ['The computer sets the Sparrow down gently. Safe, but it burns extra fuel.', h], next: nx });
+    });
+  }
+
+  var teleLast = '';
+  function teleUpdate() {
+    var el = $('tele'); if (!el || !LD) return;
+    var s = 'SPEED ' + Math.max(0, Math.round(LD.vy)) + ' (safe: 22 or less)   FUEL ' + Math.round(LD.fuel);
+    if (s !== teleLast) { el.textContent = s; teleLast = s; }
+  }
+
+  function landLoop(now) {
+    if (!LD || LD.done) return;
+    var dt = Math.min(0.05, (now - LD.last) / 1000);
+    LD.last = now;
+    stepLander(LD, dt, landInput());
+    Snd.thruster(LD.thrusting);
+    draw(); teleUpdate();
+    if (LD.done) { finishLander(); return; }
+    LD.raf = requestAnimationFrame(landLoop);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (!LD || LD.done) return;
+    var k = e.key;
+    if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') { KEYS.thrust = true; e.preventDefault(); }
+    else if (k === 'ArrowLeft' || k === 'a' || k === 'A') { KEYS.left = true; e.preventDefault(); }
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D') { KEYS.right = true; e.preventDefault(); }
+  });
+  document.addEventListener('keyup', function (e) {
+    var k = e.key;
+    if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W') KEYS.thrust = false;
+    else if (k === 'ArrowLeft' || k === 'a' || k === 'A') KEYS.left = false;
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D') KEYS.right = false;
+  });
+  document.addEventListener('pointerup', function () { PTR.thrust = PTR.left = PTR.right = false; });
+
+  function finishLander() {
+    var L = LD, moon = L.world === 'moon', next = L.next, world = L.world;
+    var ok = L.ok, onPad = L.onPad, fuelLeft = L.fuel;
+    stopLander();
+    var fact = moon ? 'On the Moon, weak gravity makes landing gentler.' : 'Mars has stronger gravity and a thin atmosphere, so landing there is hard.';
+    if (ok) {
+      sfx('pass');
+      S.landed++;
+      var h = apply({ morale: 10, fuel: Math.floor(fuelLeft / 12) });
+      info({ scene: world, title: 'TOUCHDOWN!', body: ['<span class="good">A perfect landing on the pad!</span> The crew cheers.', '<span class="hint">' + fact + '</span>', h], next: next });
+    } else {
+      sfx('crash');
+      var h2 = apply({ fuel: -10, oxygen: -6, morale: -8 });
+      var why = onPad ? 'You came in too fast, and the landing was rough.' : 'You missed the pad, and the lander tipped over.';
+      info({ scene: world, title: 'ROUGH LANDING', body: ['<span class="bad">' + why + '</span> The crew makes repairs, and the ship is okay.', '<span class="hint">' + fact + '</span>', h2], next: next });
+    }
+  }
+
+  /* =========================================================
+     RANDOM EVENTS
+     ========================================================= */
+  var EVENTS = [
+    { id: 'flare', run: function (cont) {
+        ask({ scene: 'map', title: 'SOLAR FLARE!',
+          body: ['The Sun just threw off a burst of energy called a <b class="gold">solar flare</b>. It can harm electronics and people in space.'],
+          resultTitle: 'SOLAR FLARE!',
+          options: [
+            { label: 'Shelter in the shielded room', fx: { morale: -3, oxygen: -2 }, msg: 'The crew waits it out in the safest part of the ship. Real astronauts do this.' },
+            { label: 'Keep working and hope for the best', roll: function () {
+                return Math.random() < 0.5
+                  ? { fx: {}, msg: 'Lucky! Nothing breaks.' }
+                  : { fx: { fuel: -8, morale: -4 }, msg: 'The flare scrambles a computer, and the engine wastes fuel while it restarts.' };
+              } }
+          ], next: cont });
+    } },
+    { id: 'leak', run: function (cont) {
+        ask({ scene: 'map', title: 'SMALL LEAK',
+          body: ['A tiny space rock zips through the hull and makes a small leak.'],
+          resultTitle: 'SMALL LEAK',
+          options: [
+            { label: 'Patch it yourself right now', fx: { oxygen: -4, morale: 3 }, msg: 'Quick thinking! The patch holds.' },
+            { label: 'Ask mission control how to fix it', fx: { oxygen: -9 }, msg: 'Radio signals take a long time to cross space, so the air keeps leaking while you wait for an answer.' }
+          ], next: cont });
+    } },
+    { id: 'call', run: function (cont) {
+        var h = apply({ morale: 12 });
+        info({ scene: 'map', title: 'CALL FROM HOME', body: ['A class of students on Earth sends a video message to cheer on the crew!',
+          '<span class="hint">Messages travel at the speed of light, but even that takes time across the solar system.</span>', h], next: cont });
+    } },
+    { id: 'comet', run: function (cont) {
+        var h = apply({ morale: 8 });
+        info({ scene: 'map', title: 'A COMET!', body: ['A comet streaks past the window. The whole crew gathers to watch.',
+          '<span class="hint">Comets are balls of ice and dust. Their tails always point away from the Sun.</span>', h], next: cont });
+    } },
+    { id: 'birthday', run: function (cont) {
+        ask({ scene: 'map', title: 'BIRTHDAY!',
+          body: ['It is a crew member\'s birthday! Do you stop for a celebration?'],
+          resultTitle: 'BIRTHDAY!',
+          options: [
+            { label: 'Throw a party', fx: { morale: 12, oxygen: -2 }, msg: 'You sing, eat space snacks, and float a cake around the cabin. Everybody smiles.' },
+            { label: 'Keep to the schedule', fx: { morale: -2 }, msg: 'The crew is a little disappointed, but the mission stays on track.' }
+          ], next: cont });
+    } },
+    { id: 'glitch', run: function (cont) {
+        ask({ scene: 'map', title: 'ENGINE HICCUP',
+          body: ['The main engine sputters for a moment.'],
+          resultTitle: 'ENGINE HICCUP',
+          options: [
+            { label: 'Run a full check', fx: { fuel: -3, morale: 2 }, msg: 'You find a loose wire and fix it. The engine hums happily.' },
+            { label: 'Fly on and ignore it', roll: function () {
+                return Math.random() < 0.6
+                  ? { fx: {}, msg: 'The engine settles down on its own.' }
+                  : { fx: { fuel: -10 }, msg: 'The problem gets worse, and the engine wastes fuel until you fix it.' };
+              } }
+          ], next: cont });
+    } }
+  ];
+
+  function maybeEvent(cont) {
+    if (S.events < 3 && Math.random() < 0.55) {
+      var pool = EVENTS.filter(function (e) { return S.used.indexOf(e.id) < 0; });
+      if (pool.length) {
+        var e = pool[rnd(pool.length)];
+        S.used.push(e.id); S.events++;
+        return e.run(cont);
+      }
+    }
+    cont();
+  }
+
+  /* =========================================================
+     STAGES
+     ========================================================= */
+  function stageLaunch() {
+    quiz({ scene: 'launch', title: 'STOP 1: LAUNCH PAD',
+      body: ['Welcome, Commander! Your ship, the <b class="gold">Sparrow</b>, is ready. Your mission: fly from Earth all the way to Neptune.',
+             'Before liftoff, the flight director has a question for you.'],
+      q: 'Why does a rocket have to go so fast to leave Earth?',
+      options: [{ t: 'To break free of Earth\'s gravity', ok: true },
+                { t: 'To get away from the Moon', ok: false },
+                { t: 'To keep the engine cool', ok: false },
+                { t: 'To go faster than light', ok: false }],
+      right: 'Right! Gravity pulls everything toward Earth. A rocket has to reach about 11 kilometers per second (25,000 miles per hour) to break free.',
+      wrong: 'To break free of Earth\'s gravity. A rocket needs to reach about 11 kilometers per second (25,000 miles per hour) to escape it.',
+      next: function () {
+        ask({ scene: 'launch', title: 'LOAD THE SHIP',
+          body: ['You have room for one extra crate. What will you load?'],
+          resultTitle: 'LOAD THE SHIP',
+          options: [
+            { label: 'An extra fuel tank', fx: { fuel: 15 }, msg: 'More fuel gives you more room for mistakes.' },
+            { label: 'An air and water recycler', fx: { oxygen: 15 }, msg: 'The recycler cleans the air and water so they last longer.' },
+            { label: 'Games, music, and snacks', fx: { morale: 15 }, msg: 'A happy crew works better on a long trip.' }
+          ],
+          next: function () {
+            sfx('launch', 0.05);
+            info({ scene: 'liftoff', title: 'LIFTOFF!', body: ['Three... two... one... The Sparrow thunders into the sky!'], next: function () { nextStop(0); } });
+          } });
+      } });
+  }
+
+  function stageMoon() {
+    quiz({ scene: 'moon', title: 'STOP 2: THE MOON',
+      body: ['The Moon is about 384,000 kilometers (239,000 miles) from Earth. Its gravity is only about one-sixth of Earth\'s, so you would weigh much less here!'],
+      q: 'The Moon\'s sky is black even in the daytime. Why?',
+      options: [{ t: 'The Moon has almost no air to scatter sunlight', ok: true },
+                { t: 'The Sun is dimmer on the Moon', ok: false },
+                { t: 'Dust clouds cover the sky', ok: false },
+                { t: 'The Moon spins too fast', ok: false }],
+      right: 'Right! On Earth, air scatters sunlight and makes the sky look blue. The Moon has almost no air, so the sky stays black.',
+      wrong: 'The Moon has almost no air. On Earth, air scatters sunlight and makes the sky blue. Without air, the sky stays black.',
+      next: function () { landerIntro('moon', function () { nextStop(1); }); } });
+  }
+
+  function stageMars() {
+    quiz({ scene: 'mars', title: 'STOP 3: MARS',
+      body: ['Mars has the tallest volcano known in the solar system, Olympus Mons. A day on Mars lasts about 24 hours and 37 minutes.'],
+      q: 'Why does Mars look red?',
+      options: [{ t: 'Rusty iron in the dust', ok: true },
+                { t: 'Red plants cover it', ok: false },
+                { t: 'Lava covers the ground', ok: false },
+                { t: 'It is always on fire', ok: false }],
+      right: 'Right! The dust on Mars contains iron that has rusted, just like an old bike left out in the rain.',
+      wrong: 'The red color comes from rusty iron in the dust, just like an old bike left out in the rain.',
+      next: function () { landerIntro('mars', function () { nextStop(2); }); } });
+  }
+
+  function stageBelt() {
+    quiz({ scene: 'belt', title: 'STOP 4: ASTEROID BELT',
+      body: ['The asteroid belt is a wide ring of rocky leftovers from the early solar system. Ceres, the largest object in it, is a dwarf planet.'],
+      q: 'Where is the main asteroid belt?',
+      options: [{ t: 'Between Mars and Jupiter', ok: true },
+                { t: 'Between Venus and Earth', ok: false },
+                { t: 'Beyond Neptune', ok: false },
+                { t: 'Around the Moon', ok: false }],
+      right: 'Right! It sits between the orbits of Mars and Jupiter.',
+      wrong: 'The main belt sits between the orbits of Mars and Jupiter.',
+      next: function () {
+        ask({ scene: 'belt', title: 'ROCKS AHEAD',
+          body: ['Space rocks drift all around the Sparrow. How will you cross the belt?'],
+          resultTitle: 'ROCKS AHEAD',
+          options: [
+            { label: 'Fly around the edge of the belt', fx: { fuel: -6 }, msg: 'The long way is safe, but it burns extra fuel.' },
+            { label: 'Weave through the gaps', roll: function () {
+                return Math.random() < 0.75
+                  ? { fx: { morale: 6 }, msg: 'Smooth flying! The rocks in the belt are really far apart, and you glide right through.' }
+                  : { fx: { oxygen: -6, fuel: -4 }, msg: 'A small rock clips the hull. You make repairs, but it costs air and fuel.' };
+              } },
+            { label: 'Wait while scientists map a safe path', fx: { morale: -2, oxygen: -4 }, msg: 'The scientists find a safe route. Waiting uses up some air, but it is a careful choice.' }
+          ],
+          next: function () { nextStop(3); } });
+      } });
+  }
+
+  function stageJupiter() {
+    quiz({ scene: 'jupiter', title: 'STOP 5: JUPITER',
+      body: ['Jupiter is the biggest planet. More than 1,300 Earths could fit inside it! Its Great Red Spot is a giant storm that has raged for hundreds of years.'],
+      q: 'What is Jupiter mostly made of?',
+      options: [{ t: 'Hydrogen and helium gas', ok: true },
+                { t: 'Solid rock', ok: false },
+                { t: 'Liquid water', ok: false },
+                { t: 'Ice and dust', ok: false }],
+      right: 'Right! Jupiter is a gas giant, made mostly of hydrogen and helium.',
+      wrong: 'Jupiter is a gas giant, made mostly of hydrogen and helium. It has no solid surface to land on.',
+      next: function () {
+        ask({ scene: 'jupiter', title: 'GRAVITY ASSIST',
+          body: ['Jupiter\'s gravity is so strong that a ship can swing around it like a slingshot and pick up speed for free. This is called a <b class="gold">gravity assist</b>. What is your plan?'],
+          resultTitle: 'GRAVITY ASSIST',
+          options: [
+            { label: 'Slingshot around Jupiter', roll: function () {
+                return Math.random() < 0.8
+                  ? { fx: { fuel: 15, morale: 3 }, msg: 'Whoosh! The Sparrow speeds up, and you save lots of fuel.' }
+                  : { fx: { fuel: 8, morale: -6 }, msg: 'You get the speed boost, but Jupiter\'s radiation belts rattle the crew.' };
+              } },
+            { label: 'Orbit Jupiter and study the Great Red Spot', fx: { morale: 8, fuel: -6 }, msg: 'The crew takes amazing pictures of the giant storm. It costs some fuel.' },
+            { label: 'Fly straight past', fx: {}, msg: 'You skip the shortcut and keep going.' }
+          ],
+          next: function () { nextStop(4); } });
+      } });
+  }
+
+  function stageSaturn() {
+    quiz({ scene: 'saturn', title: 'STOP 6: SATURN',
+      body: ['Saturn is so light for its size that it would float in a giant bathtub of water!'],
+      q: 'What are Saturn\'s rings made of?',
+      options: [{ t: 'Chunks of ice and rock', ok: true },
+                { t: 'Solid metal bands', ok: false },
+                { t: 'Clouds of gas', ok: false },
+                { t: 'Rings of fire', ok: false }],
+      right: 'Right! The rings are made of billions of pieces of ice and rock, from tiny grains to chunks as big as houses.',
+      wrong: 'The rings are made of billions of pieces of ice and rock, from tiny grains to chunks as big as houses.',
+      next: function () {
+        ask({ scene: 'saturn', title: 'AT SATURN',
+          body: ['The crew wants to explore. What will you do at Saturn?'],
+          resultTitle: 'AT SATURN',
+          options: [
+            { label: 'Photograph the rings', fx: { morale: 10, fuel: -2 }, msg: 'The pictures are stunning. The crew is thrilled.' },
+            { label: 'Visit Titan, the moon with a thick atmosphere', fx: { morale: 10, fuel: -8 }, msg: 'Titan has clouds, rain, and lakes, but they are made of methane, not water. You cannot breathe there!' },
+            { label: 'Mine ice from the rings to make air and fuel', fx: { oxygen: 14, fuel: 6, morale: -3 }, msg: 'Ice is frozen water, and water can be split into oxygen to breathe and hydrogen to burn. A smart use of what is nearby, but it is hard work.' }
+          ],
+          next: function () { nextStop(5); } });
+      } });
+  }
+
+  function stageUranus() {
+    quiz({ scene: 'uranus', title: 'STOP 7: URANUS',
+      body: ['Uranus is an ice giant, about 2.9 billion kilometers from the Sun. Methane gas in its air gives it a blue-green color.'],
+      q: 'Which planet spins tilted on its side, like a rolling ball?',
+      options: [{ t: 'Uranus', ok: true }, { t: 'Mars', ok: false }, { t: 'Jupiter', ok: false }, { t: 'Earth', ok: false }],
+      right: 'Right! Uranus is tipped over so far that it rolls around the Sun on its side.',
+      wrong: 'It is Uranus. It is tipped over so far that it rolls around the Sun on its side.',
+      next: function () {
+        ask({ scene: 'uranus', title: 'AT URANUS',
+          body: ['It is cold and quiet out here. The crew is tired. What will you do?'],
+          resultTitle: 'AT URANUS',
+          options: [
+            { label: 'Study the tilted rings and moons', fx: { morale: 8, fuel: -4 }, msg: 'You find rings that are thin and dark, and moons with strange cracked surfaces.' },
+            { label: 'Give the crew a day off', fx: { morale: 12, oxygen: -4 }, msg: 'Everybody rests, plays games, and looks out the window. A rested crew is a happy crew.' },
+            { label: 'Dive into the clouds to take samples', roll: function () {
+                return Math.random() < 0.6
+                  ? { fx: { morale: 6, fuel: -4 }, msg: 'The probe brings back great data about the cold, windy air.' }
+                  : { fx: { fuel: -8, morale: -3 }, msg: 'The winds toss the ship around. You make it out, but it costs fuel.' };
+              } }
+          ],
+          next: function () { nextStop(6); } });
+      } });
+  }
+
+  function stageNeptune() {
+    quiz({ scene: 'neptune', title: 'STOP 8: NEPTUNE',
+      body: ['You made it to Neptune, the farthest planet from the Sun! Its winds are the fastest in the solar system, and one trip around the Sun takes about 165 Earth years.',
+             'One last question, Commander.'],
+      q: 'Pluto was once called the ninth planet. What do scientists call it now?',
+      options: [{ t: 'A dwarf planet', ok: true }, { t: 'An asteroid', ok: false }, { t: 'A comet', ok: false }, { t: 'A moon of Neptune', ok: false }],
+      right: 'Right! In 2006, scientists decided Pluto is a dwarf planet.',
+      wrong: 'Pluto is a dwarf planet. In 2006, scientists made that decision, which left eight planets.',
+      next: win });
+  }
+
+  function win() {
+    var score = Math.round(100 + S.right * 12 + S.landed * 15 + S.fuel / 2 + S.oxygen / 2 + S.morale / 2);
+    var rank = score >= 320 ? 'STAR ADMIRAL' : score >= 270 ? 'COMMANDER' : score >= 220 ? 'NAVIGATOR' : 'SPACE CADET';
+    render({ scene: 'win', title: 'MISSION COMPLETE!',
+      body: ['The <b class="gold">Sparrow</b> has reached Neptune! The crew floats in the window, looking back at a tiny blue dot far away: home.',
+             '<p class="board">QUIZ: ' + S.right + ' OF ' + S.total + ' RIGHT\nLANDINGS BY HAND: ' + S.landed + ' OF 2\nFUEL LEFT: ' + S.fuel + '\nAIR LEFT: ' + S.oxygen + '\nCREW MORALE: ' + S.morale + '\nSCORE: ' + score + '\nRANK: <span class="gold">' + rank + '</span></p>',
+             '<span class="hint">You flew past the Moon, Mars, the asteroid belt, Jupiter, Saturn, and Uranus on the way.</span>'],
+      choices: [
+        { label: 'Fly the mission again', run: begin },
+        { label: 'Review the trail', run: function () { recap(win); } }
+      ] });
+  }
+
+  var STAGES = [stageLaunch, stageMoon, stageMars, stageBelt, stageJupiter, stageSaturn, stageUranus, stageNeptune];
+
+  /* =========================================================
+     START
+     ========================================================= */
+  function begin() {
+    S = newState();
+    S.hud = true;
+    travel(0);
+  }
+
+  function title() {
+    S = newState();
+    render({ scene: 'title', big: 'PLANET HOPPER',
+      body: ['<p class="hint" style="margin-top:0">A Trip Across the Solar System</p>',
+             'You are the commander of the starship <b class="gold">Sparrow</b>. Fly from Earth all the way to Neptune, learn about each world, and keep your fuel, air, and crew spirits up!'],
+      choices: [
+        { label: 'Start the mission', run: begin },
+        { label: 'Learn the trail first', run: function () { recap(title); } }
+      ] });
+  }
+
+  /* ---------- sound button ---------- */
+  var sndBtn = $('snd');
+  function sndLabel() {
+    sndBtn.textContent = 'Sound: ' + (Snd.on ? 'On' : 'Off');
+    sndBtn.setAttribute('aria-pressed', Snd.on ? 'true' : 'false');
+  }
+  try { Snd.on = localStorage.getItem('roadToLawSound') === '1'; } catch (e) { /* ignore */ }
+  sndLabel();
+  sndBtn.addEventListener('click', function () { Snd.set(!Snd.on); });
+  function unlockAudio() {
+    if (Snd.on && !Snd.ctx && Snd.init()) { Snd.ctx.resume(); Snd.cur = null; Snd.play(Snd.want); }
+  }
+  document.addEventListener('pointerdown', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
+  document.addEventListener('visibilitychange', function () {
+    if (!Snd.ctx) return;
+    if (document.hidden) Snd.ctx.suspend(); else if (Snd.on) Snd.ctx.resume();
+  });
+
+  title();
+})();
+</script>
+</body>
+</html>
