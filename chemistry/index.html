@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yonas' Lab - A Chemistry Adventure</title>
+<style>
+  :root {
+    --k:#000; --b:#0000aa; --g:#00aa00; --n:#aa5500; --l:#aaaaaa; --d:#555555;
+    --B:#5555ff; --G:#55ff55; --C:#55ffff; --R:#ff5555; --M:#ff55ff; --Y:#ffff55; --W:#ffffff;
+    --mono: "Courier New", Courier, "Lucida Console", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #000;
+    color: var(--W);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  a { color: var(--C); }
+  a:hover { color: var(--Y); }
+  :focus-visible { outline: 3px solid var(--Y); outline-offset: 2px; }
+
+  .wrap { max-width: 960px; margin: 0 auto; padding: 14px 14px 40px; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 0 12px; font-size: 16px; }
+  .snd {
+    font: inherit; font-size: 16px; color: var(--Y); background: #000; cursor: pointer;
+    border: 2px solid var(--W); padding: 6px 14px; min-height: 44px;
+  }
+  .snd:hover, .snd:focus-visible { background: var(--W); color: #000; outline: none; }
+  .snd[aria-pressed="true"] { color: var(--G); }
+  .snd[aria-pressed="true"]:hover, .snd[aria-pressed="true"]:focus-visible { color: #006600; }
+
+  .frame { border: 4px solid var(--W); box-shadow: 0 0 0 4px #000, 0 0 0 8px var(--B); background: #000; }
+  .screen { position: relative; border-bottom: 4px solid var(--W); }
+  .screen::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+  }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; background: #000; }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 22px;
+    padding: 8px 18px; font-size: 15px;
+    border-bottom: 2px dotted var(--d);
+  }
+  #hud[hidden] { display: none; }
+  #hud .lbl { color: var(--l); }
+  #hud .low { color: var(--R); }
+
+  #text { padding: 16px 18px 12px; outline: none; }
+  #text p { margin: 0 0 .75em; max-width: 64ch; }
+  h1.title {
+    margin: 4px 0 6px; font-size: clamp(34px, 9vw, 64px); line-height: 1; letter-spacing: .05em;
+    color: var(--Y); text-shadow: 4px 4px 0 var(--R), 8px 8px 0 var(--B);
+  }
+  h2 { margin: 0 0 .6em; font-size: 20px; letter-spacing: .04em; color: var(--Y); }
+  .sub { color: var(--C); margin-top: .9em !important; }
+  .gold { color: var(--Y); }
+  .good { color: var(--G); }
+  .bad  { color: var(--R); }
+  .hint { color: var(--C); }
+  .q    { color: var(--W); background: var(--b); padding: 6px 10px; }
+  .fx   { font-size: 16px; }
+  .fx span { margin-right: 18px; }
+  .board { white-space: pre-wrap; border: 2px solid var(--d); padding: 8px 12px; max-width: 46ch; }
+  .steps { margin: 0 0 .75em; padding-left: 1.6em; max-width: 64ch; }
+  .steps li { margin: .45em 0; }
+
+  #choices { padding: 0 10px 18px; }
+  .choice {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    font: inherit; color: var(--W); background: transparent;
+    border: 0; padding: 8px 8px; margin: 2px 0; min-height: 44px;
+  }
+  .choice .n { color: var(--Y); }
+  .choice:hover, .choice:focus-visible { background: var(--W); color: #000; outline: none; }
+  .choice:hover .n, .choice:focus-visible .n { color: #aa0000; }
+
+  .foot { margin-top: 18px; font-size: 14px; color: var(--l); max-width: 64ch; }
+
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    #text { padding: 12px 12px 8px; }
+    #choices { padding: 0 4px 14px; }
+    #hud { padding: 8px 12px; font-size: 13px; }
+  }
+
+  .who { color: var(--C); }
+  .who::after { content: ":"; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="top"><a href="https://jaxtechnology.github.io/">Back to Jax Technology</a>
+    <button id="snd" class="snd" type="button" aria-pressed="false">Sound: Off</button></p>
+
+  <div class="frame">
+    <div class="screen"><canvas id="screen" width="320" height="160" aria-hidden="true"></canvas></div>
+    <div id="hud" hidden></div>
+    <div id="text" tabindex="-1" aria-live="polite"></div>
+    <div id="choices" role="group" aria-label="Your choices"></div>
+  </div>
+
+  <p class="foot">Yonas' Lab is a classroom game about middle school chemistry. Click a choice, or press its number key. Press M to turn sound on or off. The music and sounds are made right in your browser.</p>
+</div>
+
+<noscript><p style="padding:20px">This game needs JavaScript turned on.</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* =========================================================
+     DRAWING TOOLKIT  (320 x 160 canvas, 16-color EGA palette)
+     ========================================================= */
+  var cv = $('screen');
+  var ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  var P = { k:'#000000', b:'#0000aa', g:'#00aa00', c:'#00aaaa', r:'#aa0000', m:'#aa00aa', n:'#aa5500', l:'#aaaaaa',
+            d:'#555555', B:'#5555ff', G:'#55ff55', C:'#55ffff', R:'#ff5555', M:'#ff55ff', Y:'#ffff55', W:'#ffffff' };
+
+  function R(x, y, w, h, c) {
+    ctx.fillStyle = P[c] || c;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  }
+  function circle(cx, cy, r, c) {
+    for (var y = -r; y <= r; y++) {
+      var w = Math.floor(Math.sqrt(r * r - y * y));
+      R(cx - w, cy + y, 2 * w + 1, 1, c);
+    }
+  }
+  function tri(cx, topY, half, h, c) {
+    for (var i = 0; i < h; i++) { var w = half * 2 * (i + 1) / h; R(cx - w / 2, topY + i, w, 1, c); }
+  }
+  function sky(h, cols) {
+    var bh = Math.ceil(h / cols.length);
+    cols.forEach(function (c, i) { R(0, i * bh, 320, bh, c); });
+  }
+  function lcg(seed) {
+    var s = seed >>> 0;
+    return function () { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  }
+
+  var t = 0; // animation tick
+
+  var STARS = (function () {
+    var r = lcg(7), a = [];
+    for (var i = 0; i < 70; i++) a.push([Math.floor(r() * 320), Math.floor(r() * 110), Math.floor(r() * 7)]);
+    return a;
+  })();
+  function stars() {
+    STARS.forEach(function (s) { if ((t + s[2]) % 9 !== 0) R(s[0], s[1], 1, 1, s[2] % 3 === 0 ? 'Y' : 'W'); });
+  }
+  function cloud(x, y) { R(x, y + 8, 32, 4, 'W'); R(x + 4, y + 4, 24, 8, 'W'); R(x + 10, y, 14, 10, 'W'); }
+
+
+  /* =========================================================
+     SPRITES + SCENES  (Yonas' Lab)
+     ========================================================= */
+  // Pixel sprites for Yonas (32 x 46). One string per row. "." is transparent.
+var YONAS_PAL = {"k": "#000000", "n": "#8a4a14", "s": "#7a3a00", "W": "#ffffff", "l": "#aaaaaa", "d": "#555555", "c": "#00aaaa", "C": "#55ffff", "R": "#ff5555", "r": "#aa0000", "g": "#00aa00", "G": "#55ff55", "Y": "#ffff55", "B": "#5555ff", "b": "#0000aa", "M": "#ff55ff"};
+var YONAS = {
+  stand: [
+    ".............kd.................",
+    ".......kk....kkk......kk........",
+    ".......kkk..k.kkk....kkk........",
+    "..dk....kd.kkkkkdkk.kkkd......dk",
+    "..kkk...kkkkdkkkkkkdkkkkkk...kkk",
+    "...kkk.kdkkkkkkdkkkkkkdkkkk.kdk.",
+    "....dkkkkkkdkkkkkkkkkkkkkdkkkk..",
+    ".....kkdkkkkkddkkkkkkdkkkkkkd...",
+    "....kkkkkkdkkkkkkdkkkkkkdkkk....",
+    "...kkkdkkkkkkdkkkkkkdkkkkkkdkk..",
+    "..dkkkkkkdkkkkkkdkdkkkkdkkkkkk..",
+    "...kkdkkkkkkdkkkdkkdkkkkkkdkkkkk",
+    "kdkkkkkkdknnnnnnnnnnnndkkkkkkdkk",
+    "kkkkdkkkkknnnnnnnnnnnnkdkdkkkkkk",
+    ".kkkkkkdkknkkkknnkkkknkkkkkkdkkk",
+    "kkkdkkkkkddddddddddddddkdkkkkkkd",
+    ".kkkkkdkkdCWCCCddCWCCCdkkkkdkkkk",
+    ".kdkkkkkkdCCkkCddCCkkCdkkkd..k..",
+    "...k.dkkkddddddddddddddkdkd...k.",
+    "..k..kkkdknnnnnssnnnnndkkkk..dkk",
+    ".kkk.kkkkdndkkkkkkkkdnkkkdk.kkkk",
+    "dkkkkkkdkkkkkkRRRRkkkdkkkkk..kkk",
+    ".kkd.dkkkkdkkkkkddkkkkkkdkk...k.",
+    "..k...dkkkkkkddkkkkkdkkkkd......",
+    "........kdkkdkkkdkkkkkkd........",
+    "..........dkdkkkkkkdkd..........",
+    ".......WWWWWWccccccWWWWWW.......",
+    ".......WWWWWWWccccWWWWWWW.......",
+    ".....lWWlWWWWWWccWWWWWWlWWl.....",
+    ".....lWWlWWWWWWllWWWWWWlWWl.....",
+    ".....lWWlWWRBWWllWWWWWWlWWl.....",
+    ".....lWWlWlRBlWllWWWWWWlWWl.....",
+    ".....lWWlWlWWldlldWWWWWlWWl.....",
+    ".....lWWlWlWWlWllWWWWWWlWWl.....",
+    ".....lWWlWllllWllWWWWWWlWWl.....",
+    ".....lWWlWWWWWdlldWWWWWlWWl.....",
+    ".....lWWlWWWWWWllWWWWWWlWWl.....",
+    ".....lWWlWWWWWWllWWWWWWlWWl.....",
+    ".....nnnlWWWWWWllWWWWWWlnnn.....",
+    ".....nnnllllllllllllllllnnn.....",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+  cheer: [
+    ".............kd.................",
+    ".......kk....kkk......kk........",
+    ".......kkk..k.kkk....kkk........",
+    "..dk....kd.kkkkkdkk.kkkd......dk",
+    "..kkk...kkkkdkkkkkkdkkkkkk...kkk",
+    "...kkk.kdkkkkkkdkkkkkkdkkkk.kdk.",
+    "....dkkkkkkdkkkkkkkkkkkkkdkkkk..",
+    ".....kkdkkkkkddkkkkkkdkkkkkkd...",
+    "....kkkkkkdkkkkkkdkkkkkkdkkk....",
+    "...kkkdkkkkkkdkkkkkkdkkkkkkdkk..",
+    "..dkkkkkkdkkkkkkdkdkkkkdkkkkkk..",
+    "...kkdkkkkkkdkkkdkkdkkkkkkdkkkkk",
+    "kdkkkkkkdknnnnnnnnnnnndkkkkkkdkk",
+    "kkkkdkkkkknnnnnnnnnnnnkdkdkkkkkk",
+    ".nnnnkkdkknkkkknnkkkknkkkkknnnkk",
+    "knnnnkkkkddddddddddddddkdkknnnkd",
+    ".nnnnkdkkdCWCCCddCWCCCdkkkknnnkk",
+    ".nnnnkkkkdCCkkCddCCkkCdkkkdnnn..",
+    "..WWWdkkkddddddddddddddkdkdWWWk.",
+    "..WWWkkkdknnnnnssnnnnndkkkkWWWkk",
+    ".kWWWkkkkdndkkkkkkkkdnkkkdkWWWkk",
+    "dkkWWkkdkkkkkkRWWRkkkdkkkkkWWkkk",
+    ".kkWWdkkkkdkkkkrrdkkkkkkdkkWW.k.",
+    "..kWWWdkkkkkkddkkkkkdkkkkdWWW...",
+    "....WWWWkdkkdkkkdkkkkkkdWWWW....",
+    "....WWWW..dkdkkkkkkdkd..WWWW....",
+    ".....WWWWWWWWccccccWWWWWWWW.....",
+    ".....WWWWWWWWWccccWWWWWWWWW.....",
+    ".....WWWWWWWWWWccWWWWWWWWWW.....",
+    "......WWWWWWWWWllWWWWWWWWW......",
+    "......WWWWWRBWWllWWWWWWWWW......",
+    "........lWlRBlWllWWWWWWl........",
+    "........lWlWWldlldWWWWWl........",
+    "........lWlWWlWllWWWWWWl........",
+    "........lWllllWllWWWWWWl........",
+    "........lWWWWWdlldWWWWWl........",
+    "........lWWWWWWllWWWWWWl........",
+    "........lWWWWWWllWWWWWWl........",
+    "........lWWWWWWllWWWWWWl........",
+    "........llllllllllllllll........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+  oops: [
+    "......l.kkddkkdddlkkllllkk......",
+    "...llllkkkddkkkkllkkllkkdkl.....",
+    "..lkkllkkkkdkdkkklkklkkkkkld....",
+    "..dkkkllkdkkkkkkdkkkkkkdkddddddk",
+    "..kkkdllkkkkdkkkkkkdkkkkkkdddkkk",
+    ".llkkkkkdkkkkkkdkkkkkkdkkkkdkdk.",
+    "..lldkkkkkkdkkkkkkkkkkkkkdkkkkkd",
+    "..lllkkdkkkkkddkkkkkkdkkkkkkdkd.",
+    "..llkkkkkkdkkkkkkdkkkkkkdkkkkdd.",
+    "...kkkdkkkkkkdkkkkkkdkkkkkkdkk..",
+    "..dkkkkkkdkkkkkkdkdkkkkdkkkkkk..",
+    "...kkdkkkkkkdkkkdkkdkkkkkkdkkkkk",
+    "kdkkkkkkdknnnnnnnnnnnndkkkkkkdkk",
+    "kkkkdkkkkknnnnnnnnnnnnkdkdkkkkkk",
+    ".kkkkkkdkknkkkknnkkkknkkkkkkdkkk",
+    "kkkdkkkkkddddddddddddddkdkkkkkkd",
+    ".kkkkkdkkdWWWWWddWWWWWdkkkkdkkkk",
+    ".kdkkkkkkdWWkWWddWWkWWdkkkd..k..",
+    "...k.dkkkddddddddddddddkdkd...k.",
+    "..k..kkkdknnnnnssnnnnndkkkk..dkk",
+    ".kkk.kkkkdndkkkkkkkkdnkkkdk.kkkk",
+    "dkkkkkkdkkkkkkrrrrkkkdkkkkk..kkk",
+    "nnkd.dkkkkdkkkkrrdkkkkkkdkk...nn",
+    "nnk...dkkkkkkddkkkkkdkkkkd....nn",
+    "nn......kdkkdkkkdkkkkkkd......nn",
+    "WWWW......dkdkkkkkkdkd......WWWW",
+    "WWWWWW.WWWWWWccccccWWWWWW.WWWWWW",
+    "WWWWWWWWWWWWWWccccWWWWWWWWWWWWWW",
+    "..WWWWWWWWWWWWWccWWWWWWWWWWWWW..",
+    "....WWWWWWWWWWWllWWWWWWWWWWW....",
+    "......WWWWWRBWWllWWWWWWWWW......",
+    "........lWlRBlWllWWWWWWl........",
+    "........lWlWWldlldWWWWWl........",
+    "........lWlWWlWllWWWWWWl........",
+    "........lWllllWllWWWWWWl........",
+    "........lWWWWWdlldWWWWWl........",
+    "........lWWWWWWllWWWWWWl........",
+    "........lWWWWWWllWWWWWWl........",
+    "........lWWWWWWllWWWWWWl........",
+    "........llllllllllllllll........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+  pour: [
+    ".............kd.................",
+    ".......kk....kkk......kk........",
+    ".......kkk..k.kkk....kkk........",
+    "..dk....kd.kkkkkdkk.kkkd......dk",
+    "..kkk...kkkkdkkkkkkdkkkkkk...kkk",
+    "...kkk.kdkkkkkkdkkkkkkdkkkk.kdk.",
+    "....dkkkkkkdkkkkkkkkkkkkkdkkkk..",
+    ".....kkdkkkkkddkkkkkkdkkkkkkd...",
+    "....kkkkkkdkkkkkkdkkkkkkdkkk....",
+    "...kkkdkkkkkkdkkkkkkdkkkkkkdkkG.",
+    "..dkkkkkkdkkkkkkdkdkkkkdkkkkkk..",
+    "...kkdkkkkkkdkkkdkkdkkkkkkdkGkkk",
+    "kdkkkkkkdknnnnnnnnnnnndkkkkkkdkk",
+    "kkkkdkkkkknnnnnnnnnnnnkdkdkkkkkk",
+    ".kkkkkkdkknkkkknnkkkknkkkkkklllk",
+    "kkkdkkkkkddddddddddddddkdkkkllld",
+    ".kkkkkdkkdCWCCCddCWCCCdkkkkdCCCk",
+    ".kdkkkkkkdCCkkCddCCkkCdkkkdCCCC.",
+    "...k.dkkkddddddddddddddkdkdCCCCC",
+    "..k..kkkdknnnnnssnnnnndkkkkCCCCC",
+    ".kkk.kkkkdndkkkkkkkkdnkkkdkGGGGG",
+    "dkkkkkkdkkkkkkRRRRkkkdkkkkkGGGGG",
+    ".kkd.dkkkkdkkkkkddkkkkkkdkkGGGGG",
+    "..k...dkkkkkkddkkkkkdkkkkdGGGGGG",
+    "........kdkkdkkkdkkkkkkd...WWW..",
+    "..........dkdkkkkkkdkd....WWWW..",
+    ".......WWWWWWccccccWWWWWW.WWWW..",
+    ".......WWWWWWWccccWWWWWWW.WWW...",
+    ".....lWWlWWWWWWccWWWWWWlWWWWW...",
+    ".....lWWlWWWWWWllWWWWWWlWWWWW...",
+    ".....lWWlWWRBWWllWWWWWWlWWWWW...",
+    ".....lWWlWlRBlWllWWWWWWlWWWW....",
+    ".....lWWlWlWWldlldWWWWWlWWWW....",
+    ".....lWWlWlWWlWllWWWWWWl........",
+    ".....lWWlWllllWllWWWWWWl........",
+    ".....lWWlWWWWWdlldWWWWWl........",
+    ".....lWWlWWWWWWllWWWWWWl........",
+    ".....lWWlWWWWWWllWWWWWWl........",
+    ".....nnnlWWWWWWllWWWWWWl........",
+    ".....nnnllllllllllllllll........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    "..........ddddd..ddddd..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+};
+
+
+  function yonas(x, y, pose, s) {
+    var g = YONAS[pose] || YONAS.stand;
+    for (var j = 0; j < g.length; j++) {
+      var row = g[j], i = 0;
+      while (i < row.length) {
+        var ch = row.charAt(i);
+        if (ch === '.') { i++; continue; }
+        var k = i; while (k < row.length && row.charAt(k) === ch) k++;
+        R(x + i * s, y + j * s, (k - i) * s, s, YONAS_PAL[ch]);
+        i = k;
+      }
+    }
+  }
+
+  var DIG = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001',
+             '111100111001111', '111100111101111', '111001010010010', '111101111101111', '111101111001111'];
+  function num(x, y, n, c) {
+    String(n).split('').forEach(function (d, k) {
+      var g = DIG[Number(d)];
+      for (var i = 0; i < 15; i++) if (g.charAt(i) === '1') R(x + k * 4 + (i % 3), y + Math.floor(i / 3), 1, 1, c);
+    });
+  }
+  function star(x, y, c) {
+    R(x + 2, y, 1, 1, c); R(x + 1, y + 1, 3, 1, c); R(x, y + 2, 5, 1, c); R(x + 1, y + 3, 3, 1, c); R(x + 1, y + 4, 1, 1, c); R(x + 3, y + 4, 1, 1, c);
+  }
+  function dots(cx, cy, r, c) {
+    var n = Math.max(24, Math.round(r * 3));
+    for (var i = 0; i < n; i++) { var a = i / n * Math.PI * 2; R(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1, 1, c); }
+  }
+
+  function flask(x, y, col) {
+    R(x - 2, y - 6, 4, 6, 'C'); tri(x, y, 7, 10, 'C');
+    for (var i = 4; i < 10; i++) { var w = 14 * (i + 1) / 10; R(x - w / 2, y + i, w, 1, col); }
+    if (!reduce) R(x - 1 + ((t + x) % 3), y + 8 - ((t * 2 + x) % 7), 1, 1, 'W');
+  }
+  function beaker(x, y, w, h, col, lvl) {
+    if (col && lvl > 0) R(x + 1, y + h - lvl, w - 2, lvl, col);
+    R(x, y, 2, h, 'W'); R(x + w - 2, y, 2, h, 'W'); R(x, y + h - 2, w, 2, 'W');
+  }
+  function kid(x, y, body, hair) {
+    circle(x, y, 4, 'n'); R(x - 4, y - 5, 9, 3, hair); R(x - 2, y, 1, 1, 'k'); R(x + 2, y, 1, 1, 'k');
+    R(x - 4, y + 4, 9, 12, body); R(x - 3, y + 16, 3, 6, 'd'); R(x + 1, y + 16, 3, 6, 'd');
+  }
+
+  function labBG() {
+    R(0, 0, 320, 108, 'B');
+    for (var x = 0; x < 320; x += 40) R(x, 0, 1, 108, 'rgba(0,0,0,0.15)');
+    for (var y = 0; y < 108; y += 36) R(0, y, 320, 1, 'rgba(0,0,0,0.15)');
+    R(0, 108, 320, 52, 'd'); R(0, 108, 320, 3, 'l');
+    for (var fx = 0; fx < 320; fx += 40) R(fx, 111, 1, 49, 'rgba(0,0,0,0.25)');
+    R(0, 134, 320, 1, 'rgba(0,0,0,0.25)');
+    R(196, 35, 120, 4, 'n');
+    flask(212, 24, 'G'); flask(240, 24, 'M'); flask(270, 24, 'Y'); flask(298, 24, 'R');
+  }
+
+
+  // The Reaction Machine. (x, y) is the top-left corner; s is the scale; dents is 0 to 3.
+  function machine(x, y, s, dents, o) {
+    o = o || {};
+    var X = function (n) { return x + n * s; }, Y = function (n) { return y + n * s; }, Z = function (n) { return Math.max(1, n * s); };
+    R(X(8), Y(64), Z(10), Z(10), 'd'); R(X(92), Y(64), Z(10), Z(10), 'd');
+    R(X(0), Y(14), Z(110), Z(50), 'l'); R(X(0), Y(14), Z(110), Z(3), 'W'); R(X(0), Y(14), Z(3), Z(50), 'W');
+    R(X(0), Y(61), Z(110), Z(3), 'd'); R(X(107), Y(14), Z(3), Z(50), 'd');
+    [[6, 20], [99, 20], [6, 54], [99, 54]].forEach(function (p) { R(X(p[0]), Y(p[1]), Z(4), Z(4), 'd'); });
+    [26, 70].forEach(function (cx) {
+      for (var i = 0; i < 10; i++) { var w = 24 - i * 1.5; R(X(cx - w / 2), Y(i * 1.4), Z(w), Z(1.5), i < 2 ? 'W' : 'd'); }
+    });
+    R(X(14), Y(24), Z(38), Z(26), 'k'); R(X(16), Y(26), Z(34), Z(22), '#005500');
+    for (var l = 0; l < 3; l++) R(X(19), Y(30 + l * 6), Z(14 + l * 6), Z(2), 'G');
+    var gx = Math.round(X(82)), gy = Math.round(Y(38)), gr = 13 * s;
+    circle(gx, gy, Math.max(2, Math.round(gr + 2 * s)), 'd'); circle(gx, gy, Math.max(2, Math.round(gr)), 'W');
+    for (var gi = 0; gi <= 10; gi++) {
+      var ga = Math.PI + gi / 10 * Math.PI;
+      R(gx + Math.cos(ga) * gr * 0.75, gy + Math.sin(ga) * gr * 0.75, Z(2), Z(2), gi < 5 ? 'G' : gi < 8 ? 'Y' : 'R');
+    }
+    var pr = Math.max(0, Math.min(1, o.pressure == null ? 0.1 : o.pressure)), pa = Math.PI + pr * Math.PI;
+    for (var nn = 0; nn < 8; nn++) R(gx + Math.cos(pa) * nn * gr * 0.1, gy + Math.sin(pa) * nn * gr * 0.1, Z(2), Z(2), 'k');
+    R(X(110), Y(40), Z(16), Z(8), 'd');
+    if (o.gas) {
+      var br = Math.max(2, Math.round((3 + o.gas * 13) * s)), bx = Math.round(X(130)), by = Math.round(Y(44));
+      circle(bx, by - br - 1, br, 'R'); R(bx - br * 0.4, by - br * 1.4, Z(3), Z(3), 'W'); R(bx, by - 1, 1, Z(10), 'd');
+    }
+    var DT = [[58, 26, 9], [96, 52, 10], [30, 55, 10]];
+    for (var di = 0; di < dents && di < 3; di++) {
+      var dd = DT[di];
+      circle(Math.round(X(dd[0])), Math.round(Y(dd[1])), Math.max(2, Math.round(dd[2] * s)), 'k');
+      circle(Math.round(X(dd[0])), Math.round(Y(dd[1])), Math.max(2, Math.round((dd[2] - 1) * s)), 'd');
+      circle(Math.round(X(dd[0] + 1)), Math.round(Y(dd[1] + 1)), Math.max(1, Math.round((dd[2] - 2) * s)), 'l');
+      R(X(dd[0] + dd[2] - 3), Y(dd[1] + dd[2] - 3), Z(3), Z(2), 'W'); R(X(dd[0] - dd[2] - 3), Y(dd[1]), Z(4), 1, 'd');
+    }
+    if (dents >= 3) {
+      for (var sm = 0; sm < 4; sm++) circle(Math.round(X(30 + sm * 18)), Math.round(Y(-6 - ((reduce ? 6 : t * 2) + sm * 7) % 24)), Math.max(2, Math.round((5 + (sm % 2) * 2) * s)), sm % 2 ? 'd' : 'l');
+      if (!reduce && t % 4 < 2) { R(X(100), Y(6), 2, 2, 'Y'); R(X(104), Y(10), 2, 2, 'R'); R(X(10), Y(8), 2, 2, 'Y'); }
+    }
+  }
+
+  var view = { name: 'title' };
+  var M = null;                // current mission state
+  var PROG = { stars: [0, 0, 0, 0, 0, 0, 0], done: [false, false, false, false, false, false, false], started: false, dented: false };
+
+  function phColor(ph) { return ph <= 2 ? 'R' : ph <= 4 ? '#ff9900' : ph <= 6 ? 'Y' : ph <= 7 ? 'G' : ph <= 9 ? 'B' : 'M'; }
+  function stateOf(temp) { return temp <= 0 ? 'solid' : temp >= 100 ? 'gas' : 'liquid'; }
+
+  var SCENES = {
+    title: function () {
+      labBG();
+      R(176, 100, 138, 10, 'n'); R(176, 110, 138, 6, '#7a3a00');
+      beaker(196, 70, 30, 30, 'G', 20); beaker(244, 62, 34, 38, 'M', 24);
+      for (var i = 0; i < 6; i++) {
+        if (!reduce) { R(204 + (i * 4) % 14, 96 - ((t * 2 + i * 5) % 24), 2, 2, 'W'); R(252 + (i * 5) % 18, 98 - ((t * 2 + i * 7) % 30), 2, 2, 'W'); }
+      }
+      yonas(34, 16, (reduce || t % 14 < 7) ? 'stand' : 'cheer', 3);
+    },
+    hub: function () {
+      labBG();
+      R(104, 10, 200, 88, 'n'); R(108, 14, 192, 80, 'g'); R(108, 14, 192, 2, '#008800');
+      for (var i = 0; i < 7; i++) {
+        var bx = 110 + i * 27;
+        num(bx + 10, 22, i + 1, 'W');
+        for (var s = 0; s < 3; s++) star(bx + 3 + s * 7, 36, PROG.stars[i] > s ? 'Y' : 'd');
+        R(bx + 3, 50, 21, 1, 'rgba(255,255,255,0.35)');
+      }
+      R(112, 62, 40, 1, 'W'); R(112, 68, 60, 1, 'W'); R(112, 74, 30, 1, 'W');
+      machine(236, 104, 0.55, PROG.dented ? 3 : 0, { gas: PROG.done[6] && !PROG.dented ? 1 : 0, pressure: 0.1 });
+      yonas(6, 58, view.pose || 'stand', 2);
+    },
+    safety: function () {
+      labBG();
+      R(88, 96, 226, 10, 'n'); R(88, 106, 226, 26, '#7a3a00');
+      R(100, 40, 2, 6, 'l'); R(96, 46, 10, 3, 'l'); circle(98, 53, 3, 'd'); circle(106, 53, 3, 'd'); R(101, 53, 4, 1, 'd');
+      kid(124, 72, 'b', 'k'); R(134, 80, 8, 10, 'C'); R(139, 88, 1, 8, 'G');
+      R(160, 88, 12, 4, 'n'); R(160, 87, 12, 1, 'G'); R(176, 82, 7, 10, 'W'); R(177, 80, 1, 3, 'R');
+      R(194, 78, 10, 16, 'C'); R(196, 74, 6, 4, 'l');
+      R(284, 52, 30, 56, 'n'); R(286, 54, 26, 52, '#7a3a00'); R(290, 80, 2, 2, 'Y');
+      R(262, 138, 34, 6, 'C'); R(268, 136, 22, 3, 'C');
+      R(244, 62, 9, 24, 'R'); R(246, 58, 5, 4, 'd'); R(252, 60, 6, 2, 'd'); R(246, 66, 5, 6, 'W');
+      kid(224, 76, 'c', 'k'); R(230, 68, 3, 6, 'k'); R(214, 86, 12, 7, 'W'); R(214, 86, 12, 1, 'd');
+      var mp = [[118, 48], [162, 68], [194, 58], [270, 122], [244, 44], [222, 50]];
+      for (var i = 0; i < 6; i++) {
+        var fl = M && M.flags && M.flags[i];
+        R(mp[i][0], mp[i][1], 9, 9, 'k'); R(mp[i][0] + 1, mp[i][1] + 1, 7, 7, fl ? 'R' : 'Y'); num(mp[i][0] + 3, mp[i][1] + 2, i + 1, 'k');
+      }
+      yonas(4, 64, view.pose || 'stand', 2);
+    },
+    atom: function () {
+      labBG();
+      var a = (M && M.atom) || { p: 1, n: 0, e: 1 }, cx = 200, cy = 82, radii = [18, 34, 50], caps = [2, 8, 18];
+      radii.forEach(function (r) { dots(cx, cy, r, 'rgba(255,255,255,0.35)'); });
+      var left = a.e;
+      caps.forEach(function (cap, s) {
+        var k = Math.min(left, cap); left -= k;
+        for (var i = 0; i < k; i++) {
+          var ang = (reduce ? 0 : t * (0.14 / (s + 1))) + i * 2 * Math.PI / k + s;
+          var ex = cx + Math.cos(ang) * radii[s], ey = cy + Math.sin(ang) * radii[s];
+          R(ex - 1, ey - 1, 3, 3, 'C'); R(ex, ey, 1, 1, 'W');
+        }
+      });
+      var types = [], pi = 0, ni = 0;
+      while (pi < a.p || ni < a.n) {
+        if (pi < a.p && (pi <= ni || ni >= a.n)) { types.push('R'); pi++; } else { types.push('l'); ni++; }
+      }
+      types.forEach(function (c, i) {
+        var ang = i * 2.4, rad = 2.7 * Math.sqrt(i);
+        R(cx + Math.cos(ang) * rad - 2, cy + Math.sin(ang) * rad - 2, 4, 4, c);
+        R(cx + Math.cos(ang) * rad - 2, cy + Math.sin(ang) * rad - 2, 1, 1, 'W');
+      });
+      R(92, 20, 5, 5, 'R'); R(92, 30, 5, 5, 'l'); R(92, 40, 5, 5, 'C');
+      yonas(4, 64, view.pose || 'stand', 2);
+    },
+    states: function () {
+      labBG();
+      var temp = M ? M.temp : 20, st = stateOf(temp);
+      R(100, 60, 8, 62, 'd'); var hh = Math.round((temp + 30) / 150 * 62); R(101, 122 - hh, 6, hh, 'R');
+      R(97, 122 - Math.round(30 / 150 * 62), 14, 1, 'Y'); R(97, 122 - Math.round(130 / 150 * 62), 14, 1, 'Y');
+      circle(104, 126, 6, 'R');
+      beaker(160, 50, 80, 74, null, 0);
+      for (var i = 0; i < 36; i++) {
+        var cx2, cy2, sz, col;
+        if (st === 'solid') {
+          cx2 = 170 + (i % 6) * 11 + (reduce ? 0 : Math.round(Math.sin(t * 1.7 + i))); cy2 = 82 + Math.floor(i / 6) * 7 + (reduce ? 0 : Math.round(Math.cos(t * 1.9 + i)));
+          sz = 4; col = 'C';
+        } else if (st === 'liquid') {
+          cx2 = 166 + ((i * 37) % 62) + (reduce ? 0 : Math.round(4 * Math.sin(t * 0.5 + i))); cy2 = 92 + ((i * 13) % 26) + (reduce ? 0 : Math.round(3 * Math.cos(t * 0.6 + i * 1.7)));
+          sz = 3; col = 'C';
+        } else {
+          cx2 = 166 + (((i * 53) % 62) + (reduce ? 0 : Math.round(20 * Math.sin(t * 0.9 + i)))); cy2 = 58 + (((i * 29) % 54) + (reduce ? 0 : Math.round(18 * Math.cos(t * 1.0 + i * 1.3))));
+          sz = 2; col = 'W';
+        }
+        cx2 = Math.max(164, Math.min(234, cx2)); cy2 = Math.max(54, Math.min(116, cy2));
+        R(cx2, cy2, sz, sz, col);
+      }
+      if (temp > 20) { R(184, 128, 6, 4 + (t % 2) * 3, 'Y'); R(198, 128, 6, 5 + ((t + 1) % 2) * 3, 'R'); R(212, 128, 6, 4 + (t % 2) * 3, 'Y'); }
+      if (temp < 0) { R(250, 100, 10, 10, 'C'); R(262, 108, 8, 8, 'W'); R(254, 112, 8, 8, 'C'); }
+      yonas(4, 64, view.pose || 'stand', 2);
+    },
+    mix: function () {
+      labBG();
+      var st = M ? M.step : 0;
+      R(92, 112, 222, 8, 'n'); R(92, 120, 222, 14, '#7a3a00');
+      function pile(x, y, n, c) { for (var i = 0; i < n; i++) R(x + ((i * 7) % 18), y - ((i * 5) % 8), 2, 2, c); }
+      if (st === 0) {
+        beaker(120, 66, 44, 46, null, 0);
+        for (var i = 0; i < 60; i++) { var c = ['Y', 'W', 'd'][i % 3]; R(123 + ((i * 11) % 38), 104 - ((i * 7) % 34), 2, 2, c); }
+      } else if (st === 1) {
+        beaker(120, 66, 44, 46, null, 0);
+        for (var j = 0; j < 40; j++) R(123 + ((j * 11) % 38), 104 - ((j * 7) % 22), 2, 2, j % 2 ? 'Y' : 'W');
+        pile(210, 112, 18, 'd');
+      } else if (st === 2) {
+        tri(142, 52, 22, 18, 'W'); R(130, 62, 24, 6, 'Y');
+        beaker(128, 78, 34, 34, 'C', 24);
+        for (var m2 = 0; m2 < 8; m2++) R(131 + ((m2 * 9) % 26), 96 + ((m2 * 5) % 14), 1, 1, 'W');
+        pile(210, 112, 18, 'd');
+      } else {
+        R(124, 106, 52, 6, 'd'); R(132, 100, 36, 5, 'l');
+        for (var q = 0; q < 14; q++) R(134 + q * 2, 98 - (q % 3), 2, 2, 'W');
+        if (!reduce) for (var w = 0; w < 4; w++) R(138 + w * 8, 92 - ((t * 2 + w * 5) % 28), 2, 2, 'rgba(255,255,255,0.5)');
+        pile(210, 112, 18, 'd'); pile(240, 112, 18, 'Y');
+      }
+      R(268, 96, 4, 16, 'R'); R(278, 96, 4, 16, 'B'); R(268, 108, 14, 4, 'l');
+      yonas(4, 64, view.pose || 'stand', 2);
+    },
+    change: function () {
+      labBG();
+      R(92, 112, 222, 8, 'n'); R(92, 120, 222, 14, '#7a3a00');
+      var mix = M ? M.mixResult : null;
+      beaker(170, 62, 54, 50, null, 0);
+      if (mix === 'bubbles') {
+        R(171, 84, 52, 27, 'C');
+        for (var i = 0; i < 18; i++) { var by = 84 - (reduce ? (i * 3) % 20 : (t * 2 + i * 7) % 24); R(174 + ((i * 11) % 44), by, 3, 3, 'W'); }
+      } else if (mix === 'dissolve') {
+        R(171, 84, 52, 27, 'C'); for (var d = 0; d < 4; d++) R(176 + d * 10, 106, 2, 2, 'rgba(255,255,255,0.6)');
+      } else if (mix === 'layers') {
+        R(171, 94, 52, 17, 'C'); R(171, 82, 52, 12, 'Y'); R(171, 94, 52, 1, 'W');
+      } else {
+        R(171, 92, 52, 19, 'C');
+      }
+      beaker(120, 80, 28, 32, 'W', 14); beaker(246, 80, 28, 32, 'Y', 14);
+      yonas(4, 64, view.pose || 'stand', 2);
+    },
+    ph: function () {
+      labBG();
+      R(92, 112, 222, 8, 'n'); R(92, 120, 222, 14, '#7a3a00');
+      var liq = M && M.liq ? M.liq : [], cols = ['Y', 'n', 'C', 'W', 'M'];
+      for (var i = 0; i < 5; i++) {
+        var bx = 100 + i * 42;
+        beaker(bx, 74, 30, 38, M && M.cols ? M.cols[i] : cols[i], 24);
+      }
+      if (M && M.cur != null && !M.summary) {
+        var bx2 = 100 + M.cur * 42;
+        R(bx2 + 12, 56, 7, 2, 'Y'); R(bx2 + 13, 58, 5, 2, 'Y'); R(bx2 + 14, 60, 3, 2, 'Y'); R(bx2 + 15, 62, 1, 2, 'Y');
+        R(bx2 + 24, 64, 4, 44, 'W');
+        if (M.dipped) R(bx2 + 24, 84, 4, 24, phColor(M.curPh));
+      }
+      if (M && M.summary) {
+        for (var p = 0; p <= 14; p++) R(96 + p * 14, 128, 13, 8, phColor(p));
+        liq.forEach(function (l) { num(96 + l.ph * 14 + (l.ph > 9 ? 1 : 4), 118, l.ph, 'W'); R(96 + l.ph * 14 + 5, 124, 3, 3, 'W'); });
+      }
+      yonas(4, 64, view.pose || 'stand', 2);
+    },
+    machine: function () {
+      labBG();
+      var dn = M ? M.dents : 0;
+      var since = t - (view.bonk == null ? -99 : view.bonk);
+      var shake = (!reduce && since >= 0 && since < 5) ? ((since % 2) ? 3 : -3) : 0;
+      machine(120 + shake, 40, 1, dn, { pressure: M ? M.pressure : 0.1, gas: M ? M.gas : 0 });
+      for (var i = 0; i < 3; i++) { circle(98 + i * 12, 14, 4, i < dn ? 'R' : 'd'); }
+      yonas(4, 64, view.pose || 'stand', 2);
+    },
+    win: function () {
+      labBG();
+      var cc = ['Y', 'R', 'C', 'M', 'G'];
+      for (var i = 0; i < 40; i++) R((i * 37) % 320, reduce ? (i * 53) % 150 : ((i * 53) + t * 3) % 150, 2, 2, cc[i % 5]);
+      yonas(112, 12, 'cheer', 3);
+      var tot = PROG.stars.reduce(function (a, b) { return a + b; }, 0);
+      for (var s = 0; s < 7; s++) star(8 + s * 8, 8, tot > s * 3 ? 'Y' : 'd');
+    }
+  };
+
+  function draw() { (SCENES[view.name] || SCENES.title)(view); }
+  draw();
+  if (!reduce) setInterval(function () { t++; draw(); }, 130);
+
+  /* AUDIO START */
+  var NOTE_BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  function freqOf(n) {
+    var m = /^([A-G])(#?)(\d)$/.exec(n);
+    var midi = 12 * (Number(m[3]) + 1) + NOTE_BASE[m[1]] + (m[2] ? 1 : 0);
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+  function parseSeq(str) {
+    var ev = [], pos = 0;
+    str.trim().split(/\s+/).forEach(function (tok) {
+      var p = tok.split(':'), d = Number(p[1]);
+      if (p[0] !== '-') ev.push({ at: pos, f: freqOf(p[0]), d: d });
+      pos += d;
+    });
+    return { events: ev, len: pos };
+  }
+  function mkChan(str) {
+    var q = parseSeq(str), map = {};
+    q.events.forEach(function (e) { map[e.at] = e; });
+    return { map: map, len: q.len };
+  }
+  function mkTrack(d) {
+    var tr = { sd: 60 / d.tempo / 4, loop: d.loop !== false, lead: mkChan(d.lead), harm: mkChan(d.harm), bass: mkChan(d.bass), drums: d.drums || '' };
+    tr.len = tr.lead.len;
+    return tr;
+  }
+
+  var TRACKS = {
+    // Bouncy, curious title theme (C major)
+    title: mkTrack({ tempo: 126,
+      lead: 'C5:2 E5:2 G5:2 E5:2 C5:2 E5:2 G5:4  D5:2 F5:2 A5:2 F5:2 D5:2 F5:2 A5:4  E5:2 G5:2 B5:2 G5:2 E5:2 G5:2 B5:4  C6:4 G5:4 E5:4 C5:2 -:2',
+      harm: 'C4:4 G3:4 C4:4 G3:4  D4:4 A3:4 D4:4 A3:4  E4:4 B3:4 E4:4 B3:4  C4:4 G3:4 C4:8',
+      bass: 'C3:2 -:2 C3:2 -:2 G2:2 -:2 G2:2 -:2  D3:2 -:2 D3:2 -:2 A2:2 -:2 A2:2 -:2  E3:2 -:2 E3:2 -:2 B2:2 -:2 B2:2 -:2  C3:2 -:2 C3:2 -:2 G2:4 C3:4',
+      drums: 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.k.ssss' }),
+    // Light, bubbly lab loop (C major)
+    lab: mkTrack({ tempo: 104,
+      lead: 'G4:2 -:2 C5:2 -:2 E5:4 D5:2 C5:2  A4:2 -:2 D5:2 -:2 F5:4 E5:2 D5:2  G4:2 -:2 B4:2 -:2 D5:4 C5:2 B4:2  C5:4 E5:4 G5:4 C5:4',
+      harm: 'C4:2 E4:2 G4:2 E4:2 C4:2 E4:2 G4:2 E4:2  D4:2 F4:2 A4:2 F4:2 D4:2 F4:2 A4:2 F4:2  G3:2 B3:2 D4:2 B3:2 G3:2 B3:2 D4:2 B3:2  C4:2 E4:2 G4:2 E4:2 C4:8',
+      bass: 'C3:4 -:4 G2:4 -:4  D3:4 -:4 A2:4 -:4  G2:4 -:4 D3:4 -:4  C3:8 G2:4 C3:4',
+      drums: 'k...h...k...h...' + 'k...h...k...h...' + 'k...h...k...h...' + 'k...h...k...h...' }),
+    // Short victory fanfare (plays once)
+    win: mkTrack({ tempo: 140, loop: false,
+      lead: 'E5:2 G5:2 C6:2 E6:4 C6:2 E6:4  G6:4 F6:2 E6:2 C6:8',
+      harm: 'C4:2 E4:2 G4:2 C5:4 G4:2 C5:4  E4:4 D4:2 C4:2 C4:8',
+      bass: 'C3:4 G2:4 C3:4 G2:4  C3:4 G2:4 C3:8',
+      drums: 'k.h.s.h.k.h.s.hh' + 'k.k.s.s.kkkkssss' })
+  };
+
+  function audioCheck() {
+    var bad = [];
+    Object.keys(TRACKS).forEach(function (k) {
+      var t = TRACKS[k];
+      if (t.harm.len !== t.len) bad.push(k + ': harmony length ' + t.harm.len + ' vs ' + t.len);
+      if (t.bass.len !== t.len) bad.push(k + ': bass length ' + t.bass.len + ' vs ' + t.len);
+      if (t.drums.length && t.drums.length !== t.len) bad.push(k + ': drums length ' + t.drums.length + ' vs ' + t.len);
+    });
+    return bad;
+  }
+
+  var Snd = { ctx: null, master: null, bus: null, on: false, want: 'title', cur: null, tr: null, step: 0, next: 0, timer: null, noise: null, p25: null, p50: null };
+
+  function pulseWave(ctx, duty) {
+    var n = 32, re = new Float32Array(n + 1), im = new Float32Array(n + 1);
+    for (var k = 1; k <= n; k++) re[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+    return ctx.createPeriodicWave(re, im);
+  }
+
+  Snd.init = function () {
+    if (this.ctx) return true;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.3;
+      this.master.connect(this.ctx.destination);
+      var sr = this.ctx.sampleRate, buf = this.ctx.createBuffer(1, sr, sr), d = buf.getChannelData(0);
+      for (var i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
+      this.noise = buf;
+      this.p25 = pulseWave(this.ctx, 0.25);
+      this.p50 = pulseWave(this.ctx, 0.5);
+    } catch (e) { this.ctx = null; return false; }
+    return true;
+  };
+
+  Snd.note = function (dest, kind, f, when, dur, vol, slideTo) {
+    var c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    if (kind === 'p25') o.setPeriodicWave(this.p25);
+    else if (kind === 'p50') o.setPeriodicWave(this.p50);
+    else o.type = kind === 'saw' ? 'sawtooth' : 'triangle';
+    o.frequency.setValueAtTime(f, when);
+    if (slideTo) o.frequency.linearRampToValueAtTime(slideTo, when + dur);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.006);
+    g.gain.setValueAtTime(vol, when + Math.max(0.01, dur - 0.03));
+    g.gain.linearRampToValueAtTime(0.0001, when + dur);
+    o.connect(g); g.connect(dest);
+    o.start(when); o.stop(when + dur + 0.02);
+  };
+
+  Snd.drum = function (kind, when) {
+    var c = this.ctx, g = c.createGain();
+    if (kind === 'k') {
+      var o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, when);
+      o.frequency.exponentialRampToValueAtTime(45, when + 0.09);
+      g.gain.setValueAtTime(0.2, when);
+      g.gain.exponentialRampToValueAtTime(0.001, when + 0.11);
+      o.connect(g); g.connect(this.bus);
+      o.start(when); o.stop(when + 0.13);
+      return;
+    }
+    var src = c.createBufferSource(), f = c.createBiquadFilter(), dur = kind === 's' ? 0.1 : 0.035;
+    src.buffer = this.noise;
+    f.type = kind === 's' ? 'bandpass' : 'highpass';
+    f.frequency.value = kind === 's' ? 1800 : 6500;
+    g.gain.setValueAtTime(kind === 's' ? 0.07 : 0.035, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    src.connect(f); f.connect(g); g.connect(this.bus);
+    src.start(when, Math.random() * 0.5, dur + 0.02);
+  };
+
+  Snd.playStep = function (tr, i, when) {
+    var e = tr.lead.map[i];
+    if (e) this.note(this.bus, 'p25', e.f, when, e.d * tr.sd * 0.92, 0.085);
+    e = tr.harm.map[i];
+    if (e) this.note(this.bus, 'p50', e.f, when, e.d * tr.sd * 0.85, 0.04);
+    e = tr.bass.map[i];
+    if (e) this.note(this.bus, 'tri', e.f, when, e.d * tr.sd * 0.95, 0.12);
+    var d = tr.drums.charAt(i);
+    if (d === 'k' || d === 's' || d === 'h') this.drum(d, when);
+  };
+
+  Snd.tick = function () {
+    var c = this.ctx, tr = this.tr;
+    if (!c || !tr) return;
+    while (this.next < c.currentTime + 0.15) {
+      this.playStep(tr, this.step, this.next);
+      this.next += tr.sd;
+      this.step++;
+      if (this.step >= tr.len) {
+        if (tr.loop) this.step = 0;
+        else { clearInterval(this.timer); this.timer = null; this.tr = null; return; }
+      }
+    }
+  };
+
+  Snd.fadeBus = function () {
+    var old = this.bus;
+    if (!old) return;
+    var now = this.ctx.currentTime;
+    try {
+      old.gain.cancelScheduledValues(now);
+      old.gain.setValueAtTime(old.gain.value, now);
+      old.gain.linearRampToValueAtTime(0, now + 0.08);
+    } catch (e) { /* ignore */ }
+    setTimeout(function () { try { old.disconnect(); } catch (e) { /* ignore */ } }, 250);
+    this.bus = null;
+  };
+
+  Snd.play = function (key) {
+    this.want = key;
+    if (!this.on || !this.ctx || this.cur === key) return;
+    this.cur = key;
+    clearInterval(this.timer);
+    this.fadeBus();
+    this.bus = this.ctx.createGain();
+    this.bus.connect(this.master);
+    this.tr = TRACKS[key];
+    this.step = 0;
+    this.next = this.ctx.currentTime + 0.08;
+    var me = this;
+    this.timer = setInterval(function () { me.tick(); }, 30);
+  };
+
+  Snd.halt = function () {
+    clearInterval(this.timer); this.timer = null; this.tr = null; this.cur = null;
+    if (this.ctx) this.fadeBus();
+  };
+
+  Snd.set = function (v) {
+    if (v && !this.init()) return;
+    this.on = v;
+    try { localStorage.setItem('roadToLawSound', v ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (v) { this.ctx.resume(); this.cur = null; this.play(this.want); sfx('blip'); }
+    else this.halt();
+    sndLabel();
+  };
+
+  var SFX = {
+    blip:    function (S0) { Snd.note(Snd.master, 'p50', 660, S0, 0.05, 0.09); },
+    correct: function (S0) { Snd.note(Snd.master, 'p50', 784, S0, 0.09, 0.1); Snd.note(Snd.master, 'p50', 1047, S0 + 0.09, 0.18, 0.1); },
+    wrong:   function (S0) { Snd.note(Snd.master, 'saw', 196, S0, 0.14, 0.06); Snd.note(Snd.master, 'saw', 147, S0 + 0.13, 0.28, 0.06); },
+    pass:    function (S0) { [523, 659, 784, 1047].forEach(function (f, i) { Snd.note(Snd.master, 'p25', f, S0 + i * 0.08, i === 3 ? 0.25 : 0.09, 0.09); }); },
+    fail:    function (S0) { [392, 330, 262].forEach(function (f, i) { Snd.note(Snd.master, 'p50', f, S0 + i * 0.13, i === 2 ? 0.3 : 0.12, 0.09); }); },
+    gavel:   function (S0) {
+      Snd.note(Snd.master, 'tri', 130, S0, 0.07, 0.25, 70);
+      var c = Snd.ctx, src = c.createBufferSource(), g = c.createGain();
+      src.buffer = Snd.noise; g.gain.setValueAtTime(0.12, S0); g.gain.exponentialRampToValueAtTime(0.001, S0 + 0.06);
+      src.connect(g); g.connect(Snd.master); src.start(S0, 0.2, 0.08);
+    },
+    stamp:   function (S0) { Snd.note(Snd.master, 'tri', 110, S0, 0.2, 0.3, 45); Snd.note(Snd.master, 'saw', 98, S0, 0.2, 0.04, 60); }
+  };
+
+  function sfx(name, delay) {
+    if (!Snd.on || !Snd.ctx || !SFX[name]) return;
+    try { SFX[name](Snd.ctx.currentTime + (delay || 0)); } catch (e) { /* ignore */ }
+  }
+
+  /* AUDIO END */
+  // Extra sounds for the lab: bubbling and fizzing.
+  SFX.bubble = function (S0) {
+    [520, 700, 610, 880].forEach(function (f, i) { Snd.note(Snd.master, 'p50', f, S0 + i * 0.07, 0.05, 0.07, f * 1.3); });
+  };
+  SFX.fizz = function (S0) {
+    var c = Snd.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = Snd.noise; f.type = 'highpass'; f.frequency.value = 3000;
+    g.gain.setValueAtTime(0.0001, S0); g.gain.linearRampToValueAtTime(0.12, S0 + 0.08); g.gain.exponentialRampToValueAtTime(0.001, S0 + 0.9);
+    src.connect(f); f.connect(g); g.connect(Snd.master); src.start(S0, 0.1, 0.95);
+  };
+
+  SFX.bonk = function (S0) {
+    Snd.note(Snd.master, 'tri', 190, S0, 0.22, 0.3, 55);
+    Snd.note(Snd.master, 'p25', 520, S0, 0.07, 0.07, 220);
+    var c = Snd.ctx, src = c.createBufferSource(), g = c.createGain();
+    src.buffer = Snd.noise; g.gain.setValueAtTime(0.15, S0); g.gain.exponentialRampToValueAtTime(0.001, S0 + 0.08);
+    src.connect(g); g.connect(Snd.master); src.start(S0, 0.3, 0.1);
+  };
+
+  function trackFor(scene) { return scene === 'title' ? 'title' : scene === 'win' ? 'win' : 'lab'; }
+
+  /* =========================================================
+     HELPERS + PROGRESS
+     ========================================================= */
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
+
+  function loadP() {
+    try {
+      var o = JSON.parse(localStorage.getItem('yonasLabProgress') || 'null');
+      if (o && o.stars && o.done && (o.stars.length === 6 || o.stars.length === 7)) {
+        PROG.stars = o.stars.map(Number); PROG.done = o.done.map(Boolean);
+        while (PROG.stars.length < 7) { PROG.stars.push(0); PROG.done.push(false); }
+        PROG.dented = !!o.dented;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  function saveP() { try { localStorage.setItem('yonasLabProgress', JSON.stringify({ stars: PROG.stars, done: PROG.done, dented: PROG.dented })); } catch (e) { /* ignore */ } }
+  function totalStars() { return PROG.stars.reduce(function (a, b) { return a + b; }, 0); }
+  function starText(n) { var s = ''; for (var i = 0; i < 3; i++) s += i < n ? '\u2605' : '\u2606'; return s; }
+
+  var MISSIONS = [
+    { name: 'Lab Safety',        blurb: 'Learn the rules that keep everyone safe.' },
+    { name: 'Atoms and Elements', blurb: 'Build atoms from protons, neutrons, and electrons.' },
+    { name: 'States of Matter',  blurb: 'Heat and cool water to change its state.' },
+    { name: 'Mixtures',          blurb: 'Separate sand, salt, and iron filings.' },
+    { name: 'Changes in Matter', blurb: 'Sort physical and chemical changes. Mix and observe!' },
+    { name: 'Acids and Bases',   blurb: 'Test mystery liquids with pH paper.' },
+    { name: 'The Reaction Machine', blurb: 'Run the machine. Careful, mistakes leave dents!' }
+  ];
+
+  var NOTES = [
+    'LAB SAFETY: Goggles on. Hair tied back. No food or drinks. Label everything. Tell your teacher about spills. Never taste or sniff chemicals.',
+    'ATOMS: Protons decide the element. A neutral atom has equal protons and electrons. Mass number = protons + neutrons. Electron shells hold 2, then 8.',
+    'STATES OF MATTER: Solid, liquid, and gas. Heat makes particles move faster. Water freezes at 0 C and boils at 100 C.',
+    'MIXTURES: The parts of a mixture keep their own properties. Separate them with magnets, water and filters, and evaporation.',
+    'CHANGES: Physical change = same substance. Chemical change = new substance. Clues: gas bubbles, color change, heat or light, a new solid.',
+    'ACIDS AND BASES: pH 0 to 14. Below 7 is acid, 7 is neutral, above 7 is a base. Indicators like pH paper change color.',
+    'REACTIONS: Reactants change into products, and new substances form. Mass is conserved, because atoms are rearranged, not destroyed. Gas in a sealed container builds pressure.'
+  ];
+
+  function newMission(i) { M = { i: i, mistakes: 0, hint: 0 }; return M; }
+
+  function say(t) { return '<p><span class="who">YONAS</span> ' + t + '</p>'; }
+  function hintLine(list) { return (M && M.hint > 0) ? '<span class="hint">HINT: ' + list[Math.min(M.hint, list.length) - 1] + '</span>' : ''; }
+  function hintBtn(redraw) { return { label: 'Ask Yonas for a hint', run: function () { M.hint++; redraw(); } }; }
+
+  /* =========================================================
+     RENDERING
+     ========================================================= */
+  var textEl = $('text'), choicesEl = $('choices'), hudEl = $('hud'), frameEl = document.querySelector('.frame');
+  var curChoices = [];
+  function choose(c) { sfx('blip'); c.run(); }
+
+  function updateHud() {
+    if (!PROG.started) { hudEl.hidden = true; return; }
+    hudEl.hidden = false;
+    var done = PROG.done.filter(Boolean).length;
+    hudEl.innerHTML = '<span><span class="lbl">MISSIONS</span> <span class="hint">' + done + ' of 7</span></span>' +
+      '<span><span class="lbl">STARS</span> <span class="gold">' + totalStars() + ' of 21</span></span>' +
+      (M ? '<span class="good">' + MISSIONS[M.i].name.toUpperCase() + '</span>' : '');
+  }
+
+  function render(o) {
+    view = { name: o.scene || 'title', pose: o.pose || 'stand', bonk: o.bonk ? t : null };
+    draw();
+    updateHud();
+    Snd.play(trackFor(view.name));
+
+    var html = '';
+    if (o.big) html += '<h1 class="title">' + o.big + '</h1>';
+    if (o.title) html += '<h2>' + o.title + '</h2>';
+    (o.body || []).forEach(function (p) {
+      if (!p) return;
+      html += (typeof p === 'string' && p.replace(/^\s+/, '').charAt(0) === '<') ? p : '<p>' + p + '</p>';
+    });
+    textEl.innerHTML = html;
+
+    choicesEl.innerHTML = '';
+    curChoices = o.choices || [];
+    curChoices.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice';
+      b.innerHTML = '<span class="n">' + (i + 1) + '.</span> ' + c.label;
+      b.addEventListener('click', function () { choose(c); });
+      choicesEl.appendChild(b);
+    });
+
+    if (frameEl.getBoundingClientRect().top < 0) frameEl.scrollIntoView({ block: 'start' });
+    try { textEl.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'm' || e.key === 'M') { Snd.set(!Snd.on); return; }
+    var n = parseInt(e.key, 10), idx = -1;
+    if (n >= 1 && n <= 9) idx = n - 1;
+    else if ((e.key === 'Enter' || e.key === ' ') && curChoices.length === 1 && document.activeElement.tagName !== 'BUTTON') idx = 0;
+    if (idx >= 0 && curChoices[idx]) { e.preventDefault(); choose(curChoices[idx]); }
+  });
+
+  /* ---------- reusable screens ---------- */
+  function info(o) {
+    render({ scene: o.scene, pose: o.pose, title: o.title, body: o.body,
+             choices: [{ label: o.btn || 'Continue', run: o.next }] });
+  }
+
+  // qs: [{ q, ok, bad:[...], right, wrong }]
+  function quizSeq(scene, title, qs, next) {
+    var k = 0;
+    (function step() {
+      if (k >= qs.length) return next();
+      var q = qs[k++], opts = shuffle([{ t: q.ok, ok: true }].concat(q.bad.map(function (b) { return { t: b, ok: false }; })));
+      var n = k;
+      render({ scene: scene, pose: 'stand', title: title + ' (' + n + ' of ' + qs.length + ')',
+        body: [say('Quick check! Pick the best answer.'), '<p class="q">' + q.q + '</p>'],
+        choices: opts.map(function (o) {
+          return { label: o.t, run: function () {
+            if (o.ok) { sfx('correct', 0.08); render({ scene: scene, pose: 'cheer', title: title, body: ['<p class="good">CORRECT!</p>', say(q.right)], choices: [{ label: 'Continue', run: step }] }); }
+            else { M.mistakes++; sfx('wrong', 0.08); render({ scene: scene, pose: 'stand', title: title, body: ['<p class="bad">NOT QUITE.</p>', say(q.wrong)], choices: [{ label: 'Continue', run: step }] }); }
+          } };
+        }) });
+    })();
+  }
+
+  function finishMission() {
+    var i = M.i, m = M.mistakes, st = m <= 1 ? 3 : (m <= 3 ? 2 : 1);
+    PROG.stars[i] = Math.max(PROG.stars[i], st); PROG.done[i] = true; saveP();
+    sfx('pass');
+    render({ scene: 'win', title: 'MISSION COMPLETE!',
+      body: [say(st === 3 ? 'Fantastic work! You really know your stuff.' : st === 2 ? 'Nice job! Come back any time to try for three stars.' : 'You finished! Try again later for more stars. Practice makes a chemist.'),
+             '<p class="gold">STARS: ' + starText(st) + '</p>',
+             '<p class="board">LAB NOTEBOOK\n' + NOTES[i] + '</p>'],
+      choices: [{ label: 'Back to the lab', run: hub }] });
+  }
+
+  /* =========================================================
+     MISSION 1: LAB SAFETY
+     ========================================================= */
+  var SAFETY = [
+    { t: 'A student pours a chemical, but their goggles hang on a hook.', bad: true, why: 'Goggles protect your eyes from splashes. Wear them every time you work with chemicals.' },
+    { t: 'A snack and a drink sit next to the beakers.', bad: true, why: 'Never eat or drink in the lab. Chemicals could get into your food.' },
+    { t: 'A bottle of clear liquid has no label.', bad: true, why: 'Always label containers. Nobody can tell what is inside or how to handle it safely.' },
+    { t: 'Water is spilled on the floor by the door.', bad: true, why: 'Spills make people slip. Tell your teacher so it can be cleaned up safely.' },
+    { t: 'A fire extinguisher hangs by the door.', bad: false, why: 'Safety gear should be easy to reach. This one is right where it belongs.' },
+    { t: 'A student with hair tied back reads the directions.', bad: false, why: 'Tied-back hair stays out of flames and chemicals, and reading directions first is smart.' }
+  ];
+
+  function m1() {
+    newMission(0);
+    info({ scene: 'hub', pose: 'stand', title: 'MISSION 1: LAB SAFETY',
+      body: [say('Welcome to my lab! I am Yonas. Before we touch a single beaker, we learn the rules that keep everyone safe. Real scientists follow them every time.'),
+             '<p class="board">GOGGLES on.\nHAIR tied back.\nNO food or drinks.\nLABEL everything.\nTELL your teacher about spills.\nNEVER taste or sniff chemicals.</p>'],
+      next: function () { M.flags = [false, false, false, false, false, false]; M.hint = 0; m1Spot(); } });
+  }
+  function m1Spot() {
+    var ch = SAFETY.map(function (it, i) {
+      return { label: '<b>' + (i + 1) + '</b> ' + it.t + (M.flags[i] ? ' <span class="bad">[FLAGGED]</span>' : ''), run: function () { M.flags[i] = !M.flags[i]; m1Spot(); } };
+    });
+    ch.push({ label: '<span class="gold">Done checking</span>', run: m1Check });
+    ch.push(hintBtn(m1Spot));
+    render({ scene: 'safety', pose: 'stand', title: 'SPOT THE HAZARDS',
+      body: [say('Look at the numbered things in the lab. Choose each one that is <b class="gold">unsafe</b> to flag it. Choose it again to unflag. Some things are perfectly safe!'),
+             hintLine(['Think about eyes, food, labels, and slippery floors.', 'Four things are unsafe and two are fine.', 'The goggles, the snack, the bottle, and the spill are the unsafe ones.'])],
+      choices: ch });
+  }
+  function m1Check() {
+    var wrong = [];
+    SAFETY.forEach(function (it, i) { if (M.flags[i] !== it.bad) wrong.push(i); });
+    if (!wrong.length) {
+      sfx('correct');
+      render({ scene: 'safety', pose: 'cheer', title: 'ALL HAZARDS FOUND!',
+        body: [say('Perfect! You found all 4 hazards and left the safe things alone. Here is why each hazard matters:'),
+               '<p class="board">' + SAFETY.filter(function (s) { return s.bad; }).map(function (s) { return '- ' + s.why; }).join('\n') + '</p>'],
+        choices: [{ label: 'Continue', run: m1Quiz }] });
+      return;
+    }
+    M.mistakes++; sfx('wrong');
+    render({ scene: 'safety', pose: 'stand', title: 'NOT QUITE',
+      body: [say('Let us look again. Here is what to fix:'),
+             '<p class="board">' + wrong.map(function (i) { return (SAFETY[i].bad ? 'Number ' + (i + 1) + ' is UNSAFE. ' : 'Number ' + (i + 1) + ' is actually SAFE. ') + SAFETY[i].why; }).join('\n\n') + '</p>'],
+      choices: [{ label: 'Try again', run: function () { M.hint = 0; m1Spot(); } }] });
+  }
+  function m1Quiz() {
+    quizSeq('safety', 'SAFETY CHECK', [
+      { q: 'What should you wear every time you work with chemicals?', ok: 'Safety goggles', bad: ['Sunglasses', 'A baseball cap', 'Headphones'],
+        right: 'Yes! Goggles keep splashes out of your eyes.', wrong: 'The answer is safety goggles. They keep splashes out of your eyes.' },
+      { q: 'You spill a little liquid on the lab bench. What should you do first?', ok: 'Tell your teacher right away', bad: ['Wipe it up with your sleeve', 'Ignore it', 'Taste it to find out what it is'],
+        right: 'Correct! Always tell an adult about a spill, because you may not know what is in it.', wrong: 'Tell your teacher right away. Never taste it, and do not wipe it up with your sleeve, because you may not know what the liquid is.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 2: ATOMS AND ELEMENTS
+     ========================================================= */
+  var ATOMS = [{ name: 'Helium', sym: 'He', Z: 2, A: 4 }, { name: 'Carbon', sym: 'C', Z: 6, A: 12 }, { name: 'Oxygen', sym: 'O', Z: 8, A: 16 }];
+
+  function m2() {
+    newMission(1);
+    info({ scene: 'atom', pose: 'stand', title: 'MISSION 2: ATOMS AND ELEMENTS',
+      body: [say('Everything around you is made of tiny atoms. An atom has a <b class="gold">nucleus</b> in the middle with two kinds of particles:'),
+             '<p class="board"><span class="bad">PROTONS</span> are positive (red).\nNEUTRONS have no charge (gray).\n<span class="hint">ELECTRONS</span> are negative, and zip around the outside (blue).</p>'],
+      next: function () {
+        info({ scene: 'atom', pose: 'stand', title: 'THE ATOM RULES',
+          body: [say('Three rules help you build any atom:'),
+                 '<p class="board">1. The number of PROTONS is the atomic number. It decides which element the atom is.\n2. A neutral atom has the SAME number of electrons as protons.\n3. Mass number = protons + neutrons.</p>',
+                 say('Electrons sit in shells. The first shell holds 2, and the second holds up to 8.')],
+          next: function () { M.k = 0; M.atom = { p: 1, n: 0, e: 1 }; M.hint = 0; m2Build(); } });
+      } });
+  }
+  function m2Build() {
+    var T = ATOMS[M.k], a = M.atom;
+    function bump(key, d, lo, hi) { return function () { a[key] = clamp(a[key] + d, lo, hi); m2Build(); }; }
+    render({ scene: 'atom', pose: 'stand', title: 'BUILD AN ATOM (' + (M.k + 1) + ' OF 3)',
+      body: [say('Build <b class="gold">' + T.name.toUpperCase() + '</b> (' + T.sym + '). Its atomic number is <b class="gold">' + T.Z + '</b> and its mass number is <b class="gold">' + T.A + '</b>.'),
+             '<p class="board">PROTONS ' + a.p + '    NEUTRONS ' + a.n + '    ELECTRONS ' + a.e + '</p>',
+             hintLine(['The atomic number tells you the protons.', 'Electrons must equal protons in a neutral atom. Neutrons = mass number minus protons.',
+                       T.name + ': ' + T.Z + ' protons, ' + (T.A - T.Z) + ' neutrons, ' + T.Z + ' electrons.'])],
+      choices: [
+        { label: '+ Proton', run: bump('p', 1, 0, 12) }, { label: '- Proton', run: bump('p', -1, 0, 12) },
+        { label: '+ Neutron', run: bump('n', 1, 0, 14) }, { label: '- Neutron', run: bump('n', -1, 0, 14) },
+        { label: '+ Electron', run: bump('e', 1, 0, 12) }, { label: '- Electron', run: bump('e', -1, 0, 12) },
+        { label: '<span class="gold">Check my atom</span>', run: m2Check }, hintBtn(m2Build)
+      ] });
+  }
+  function m2Check() {
+    var T = ATOMS[M.k], a = M.atom, msg = null;
+    if (a.p !== T.Z) msg = 'Check the PROTONS. The atomic number (' + T.Z + ') tells you how many protons ' + T.name + ' has.';
+    else if (a.e !== a.p) msg = 'A neutral atom has the same number of electrons as protons. You have ' + a.p + ' protons, so you need ' + a.p + ' electrons.';
+    else if (a.n !== T.A - T.Z) msg = 'Check the NEUTRONS. Mass number minus protons: ' + T.A + ' - ' + T.Z + ' = ' + (T.A - T.Z) + '.';
+    if (msg) { M.mistakes++; sfx('wrong'); render({ scene: 'atom', pose: 'stand', title: 'ALMOST', body: [say(msg)], choices: [{ label: 'Keep building', run: m2Build }] }); return; }
+    sfx('correct');
+    var last = M.k === ATOMS.length - 1;
+    var facts = ['Helium is the gas that makes balloons float. Its first shell is full with 2 electrons.',
+                 'Carbon is the backbone of living things. Its second shell has 4 electrons.',
+                 'Oxygen is the gas you breathe. Its second shell has 6 electrons.'];
+    render({ scene: 'atom', pose: 'cheer', title: T.name.toUpperCase() + ' BUILT!',
+      body: ['<p class="good">PERFECT ATOM!</p>', say(facts[M.k])],
+      choices: [{ label: last ? 'Continue' : 'Next atom', run: function () {
+        if (last) m2Quiz(); else { M.k++; M.atom = { p: 1, n: 0, e: 1 }; M.hint = 0; m2Build(); }
+      } }] });
+  }
+  function m2Quiz() {
+    quizSeq('atom', 'ATOM CHECK', [
+      { q: 'What does the number of protons tell you about an atom?', ok: 'Which element it is', bad: ['How much it weighs', 'How many shells it has', 'What color it is'],
+        right: 'Yes! Carbon always has 6 protons. Change the protons, and you change the element.', wrong: 'The number of protons tells you which element it is. Carbon always has 6 protons.' },
+      { q: 'An atom has 3 protons and 3 electrons. What is its overall charge?', ok: 'None. It is neutral.', bad: ['Positive', 'Negative', 'It depends on the neutrons'],
+        right: 'Correct! The positive and negative charges cancel out.', wrong: 'It is neutral. 3 positive protons and 3 negative electrons cancel each other out.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 3: STATES OF MATTER
+     ========================================================= */
+  var GOALS = [
+    { want: 'solid',  text: 'Make the water a SOLID (ice).' },
+    { want: 'gas',    text: 'Now make the water a GAS (steam).' },
+    { want: 'liquid', text: 'Now turn the steam back into a LIQUID.' }
+  ];
+
+  function m3() {
+    newMission(2);
+    info({ scene: 'states', pose: 'stand', title: 'MISSION 3: STATES OF MATTER',
+      body: [say('Matter comes in three common states. The difference is how the tiny particles move:'),
+             '<p class="board">SOLID: particles are packed tight and just wiggle in place.\nLIQUID: particles slide past each other.\nGAS: particles zoom around and spread out.</p>',
+             say('Heat gives particles energy, so they move faster. Water <b class="gold">freezes at 0 C</b> and <b class="gold">boils at 100 C</b>.')],
+      next: function () { M.temp = 20; M.g = 0; M.hint = 0; m3Play(); } });
+  }
+  function m3Play() {
+    var G = GOALS[M.g];
+    function step(d) { return function () { M.temp = clamp(M.temp + d, -30, 120); if (d > 0) sfx('bubble'); m3Play(); }; }
+    render({ scene: 'states', pose: 'stand', title: 'HEAT AND COOL (' + (M.g + 1) + ' OF 3)',
+      body: [say(G.text + ' Watch how the particles move in the beaker.'),
+             '<p class="board">TEMPERATURE: ' + M.temp + ' C\nWater freezes at 0 C and boils at 100 C.</p>',
+             hintLine(['Cooling slows the particles down. Heating speeds them up.', 'Solids wiggle in place. Liquids slide around. Gas zooms everywhere.',
+                       'Below 0 C water is a solid. Above 100 C it is a gas. In between it is a liquid.'])],
+      choices: [{ label: 'Heat up (+25 C)', run: step(25) }, { label: 'Cool down (-25 C)', run: step(-25) },
+                { label: '<span class="gold">Check the beaker</span>', run: m3Check }, hintBtn(m3Play)] });
+  }
+  function m3Check() {
+    var G = GOALS[M.g], now = stateOf(M.temp);
+    if (now !== G.want) {
+      M.mistakes++; sfx('wrong');
+      render({ scene: 'states', pose: 'stand', title: 'NOT YET',
+        body: [say('At ' + M.temp + ' C, water is a <b class="gold">' + now + '</b>. ' + (G.want === 'solid' ? 'It has to be below 0 C to freeze.' : G.want === 'gas' ? 'It has to be above 100 C to boil into steam.' : 'It has to be between 0 C and 100 C to be a liquid.'))],
+        choices: [{ label: 'Keep trying', run: m3Play }] });
+      return;
+    }
+    sfx('correct');
+    var last = M.g === GOALS.length - 1;
+    var text = G.want === 'solid' ? 'Below 0 C the particles slow down and lock in place. That is freezing!' :
+               G.want === 'gas' ? 'Above 100 C the particles zoom apart. That is boiling, and steam is water as a gas.' :
+               'The particles lose energy and slide closer together. Gas turning into liquid is called condensation.';
+    render({ scene: 'states', pose: 'cheer', title: 'YOU DID IT!', body: ['<p class="good">CORRECT!</p>', say(text)],
+      choices: [{ label: 'Continue', run: function () { if (last) m3Quiz(); else { M.g++; M.hint = 0; m3Play(); } } }] });
+  }
+  function m3Quiz() {
+    quizSeq('states', 'STATES CHECK', [
+      { q: 'Which state of matter has particles packed tightly that only wiggle in place?', ok: 'Solid', bad: ['Liquid', 'Gas', 'None of them'],
+        right: 'Yes! In a solid, the particles are locked together.', wrong: 'The answer is solid. In a solid, particles are locked in place and only wiggle.' },
+      { q: 'What happens to the particles when you add heat?', ok: 'They move faster', bad: ['They stop moving', 'They disappear', 'They get bigger'],
+        right: 'Correct! More heat means more energy, so particles move faster.', wrong: 'Particles move faster. Heat gives them more energy.' },
+      { q: 'Steam turning back into drops of water on a cold mirror is called...', ok: 'Condensation', bad: ['Melting', 'Freezing', 'Evaporation'],
+        right: 'Yes! Condensation is a gas turning into a liquid.', wrong: 'It is condensation, a gas turning into a liquid. Evaporation is the opposite: liquid to gas.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 4: MIXTURES
+     ========================================================= */
+  var MIX_TOOLS = ['Use a magnet', 'Add water and pour it through filter paper', 'Heat it until the water evaporates'];
+  var MIX_PROMPTS = ['The jar holds sand, salt, and iron filings mixed together. What is the best FIRST step?',
+                     'Now the jar holds just sand and salt. What is the best next step?',
+                     'Now you have salt water in a beaker. What is the best last step?'];
+  var MIX_RIGHT = [0, 1, 2];
+  var MIX_WRONG = [
+    { 1: 'Water would dissolve the salt, but the iron and sand would clump together on the filter. A magnet pulls the iron out cleanly first.',
+      2: 'There is no water in the jar, so nothing can evaporate. The mix is dry.' },
+    { 0: 'The iron is already gone. Sand and salt are not magnetic, so the magnet picks up nothing.',
+      2: 'Heating the dry sand and salt will not separate them. Dissolve the salt in water first.' },
+    { 0: 'The magnet cannot help. There is no iron left, and salt dissolved in water is not magnetic.',
+      1: 'The salt is dissolved in the water, so it slips right through the filter paper. Evaporate the water instead!' }
+  ];
+  var MIX_OK = ['The iron filings jump onto the magnet! Sand and salt are not magnetic, so they stay in the jar.',
+                'The salt dissolves in the water, and the sand stays behind in the filter paper.',
+                'The water evaporates and white salt crystals are left in the dish!'];
+
+  function m4() {
+    newMission(3);
+    info({ scene: 'mix', pose: 'stand', title: 'MISSION 4: MIXTURES',
+      body: [say('A <b class="gold">mixture</b> is two or more substances mixed together but NOT chemically joined. Each part keeps its own properties, so we can use those differences to separate them.'),
+             '<p class="board">Iron is MAGNETIC.\nSalt DISSOLVES in water.\nSand does NOT dissolve.\nWater EVAPORATES when heated, but salt stays behind.</p>'],
+      next: function () { M.step = 0; M.hint = 0; m4Pick(); } });
+  }
+  function m4Pick() {
+    var st = M.step;
+    var ch = MIX_TOOLS.map(function (tool, idx) {
+      return { label: tool, run: function () {
+        if (idx === MIX_RIGHT[st]) {
+          M.step++; M.hint = 0; sfx(st === 2 ? 'pass' : 'bubble');
+          render({ scene: 'mix', pose: 'cheer', title: 'IT WORKED!', body: ['<p class="good">CORRECT!</p>', say(MIX_OK[st])],
+            choices: [{ label: 'Continue', run: function () { if (M.step >= 3) m4Quiz(); else m4Pick(); } }] });
+        } else {
+          M.mistakes++; sfx('wrong');
+          render({ scene: 'mix', pose: 'stand', title: 'NOT QUITE', body: [say(MIX_WRONG[st][idx])], choices: [{ label: 'Try again', run: function () { M.hint = 0; m4Pick(); } }] });
+        }
+      } };
+    });
+    ch.push(hintBtn(m4Pick));
+    render({ scene: 'mix', pose: 'stand', title: 'SEPARATE THE MIXTURE (' + (st + 1) + ' OF 3)',
+      body: [say(MIX_PROMPTS[st]),
+             hintLine([['Which part of the mixture is attracted to a magnet?', 'Think about the one thing a magnet can grab.'][0],
+                       ['Salt dissolves in water but sand does not.', 'Which tool works on the part that dissolves?'][0],
+                       'Match the property of the substance to the tool. Magnet, then water and filter, then heat.'].slice(0, 3))],
+      choices: ch });
+  }
+  function m4Quiz() {
+    quizSeq('mix', 'MIXTURE CHECK', [
+      { q: 'Which of these is a mixture?', ok: 'A salad', bad: ['A bar of pure gold', 'A single copper wire', 'A drop of pure water'],
+        right: 'Yes! You can pick the parts of a salad apart, and each part is still itself.', wrong: 'A salad is a mixture. You can separate its parts, and each one keeps its own properties.' },
+      { q: 'Why can a magnet pull iron out of sand?', ok: 'Iron is attracted to magnets, but sand is not', bad: ['Sand is too heavy', 'Iron dissolves in sand', 'Magnets melt sand'],
+        right: 'Correct! Separating mixtures means using a difference between the parts.', wrong: 'Iron is magnetic and sand is not. That difference lets a magnet separate them.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 5: CHANGES IN MATTER
+     ========================================================= */
+  var CHANGES = [
+    { t: 'Ice melts into water.', chem: false, why: 'It is still water. Only the state changed.' },
+    { t: 'A banana rots and turns brown and mushy.', chem: true, why: 'New substances form as it rots. You cannot turn it back into a fresh banana.' },
+    { t: 'Wood burns into ash and smoke.', chem: true, why: 'Burning makes new substances, plus heat and light.' },
+    { t: 'You tear a sheet of paper into pieces.', chem: false, why: 'The paper is still paper. Only the shape and size changed.' },
+    { t: 'An iron nail rusts.', chem: true, why: 'Iron reacts with oxygen to make rust, a new substance.' },
+    { t: 'Sugar dissolves in water.', chem: false, why: 'The sugar is still sugar. Evaporate the water and you get it back.' },
+    { t: 'You bake a cake from batter.', chem: true, why: 'Heat causes reactions that make new substances, and you cannot un-bake a cake.' },
+    { t: 'You crush an aluminum can.', chem: false, why: 'It is still aluminum. Only the shape changed.' }
+  ];
+  var PAIRS = [
+    { id: 'bubbles',  name: 'Vinegar + baking soda', res: 'It fizzes and foams! Bubbles of gas form as the vinegar and baking soda react. That gas is carbon dioxide. A new substance formed, so this is a <b class="gold">chemical change</b>.', fz: true },
+    { id: 'dissolve', name: 'Water + sugar', res: 'The sugar dissolves and seems to disappear, but it is still sugar mixed into the water. No new substance formed, so this is a <b class="gold">physical change</b>.' },
+    { id: 'layers',   name: 'Water + cooking oil', res: 'The oil floats in a layer on top. They do not mix or react, and nothing new formed. This is not a chemical change.' }
+  ];
+
+  function m5() {
+    newMission(4);
+    info({ scene: 'change', pose: 'stand', title: 'MISSION 5: CHANGES IN MATTER',
+      body: [say('Matter changes all the time. There are two kinds:'),
+             '<p class="board"><span class="gold">PHYSICAL CHANGE</span>: the substance stays the same. It may change shape, size, or state.\n<span class="gold">CHEMICAL CHANGE</span>: a NEW substance forms.</p>',
+             say('Clues of a chemical change: gas bubbles, a color change, heat or light, or a new solid forming.')],
+      next: function () { M.items = shuffle(CHANGES.slice()); M.ci = 0; M.hint = 0; m5Sort(); } });
+  }
+  function m5Sort() {
+    var it = M.items[M.ci];
+    function pick(chem) {
+      return function () {
+        var ok = chem === it.chem;
+        if (ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        render({ scene: 'change', pose: ok ? 'cheer' : 'stand', title: ok ? 'CORRECT!' : 'NOT QUITE',
+          body: [say((it.chem ? 'That is a <b class="gold">chemical change</b>. ' : 'That is a <b class="gold">physical change</b>. ') + it.why)],
+          choices: [{ label: 'Continue', run: function () { M.ci++; M.hint = 0; if (M.ci >= M.items.length) m5Lab(); else m5Sort(); } }] });
+      };
+    }
+    render({ scene: 'change', pose: 'stand', title: 'SORT THE CHANGES (' + (M.ci + 1) + ' OF ' + M.items.length + ')',
+      body: [say('Is this a physical change or a chemical change?'), '<p class="q">' + it.t + '</p>',
+             hintLine(['Ask yourself: is it still the same substance afterward?', 'Can you easily get the original back? If a new substance formed, it is chemical.'])],
+      choices: [{ label: 'Physical change', run: pick(false) }, { label: 'Chemical change', run: pick(true) }, hintBtn(m5Sort)] });
+  }
+  function m5Lab() {
+    M.mixResult = M.mixResult || null; M.tried = M.tried || {};
+    var ch = PAIRS.map(function (p) {
+      return { label: p.name + (M.tried[p.id] ? ' <span class="good">[tried]</span>' : ''), run: function () {
+        M.mixResult = p.id; M.tried[p.id] = true; sfx(p.fz ? 'fizz' : 'bubble');
+        render({ scene: 'change', pose: 'cheer', title: p.name.toUpperCase(), body: [say(p.res)], choices: [{ label: 'Back to the experiments', run: m5Lab }] });
+      } };
+    });
+    var all = PAIRS.every(function (p) { return M.tried[p.id]; });
+    ch.push({ label: all ? '<span class="gold">Finish the experiments</span>' : 'Skip to the quiz', run: m5Quiz });
+    render({ scene: 'change', pose: 'stand', title: 'YONAS\' MIX LAB',
+      body: [say('Now for the fun part! Pick a pair of safe kitchen ingredients to mix, and watch what happens. Try all three!')], choices: ch });
+  }
+  function m5Quiz() {
+    M.mixResult = null;
+    quizSeq('change', 'CHANGE CHECK', [
+      { q: 'Which is a sign that a CHEMICAL change happened?', ok: 'A new substance with different properties forms', bad: ['The material changes shape', 'The material is cut into pieces', 'The material gets smaller'],
+        right: 'Yes! A new substance is the big sign of a chemical change.', wrong: 'A new substance with different properties forms. Changing shape or size is a physical change.' },
+      { q: 'When vinegar and baking soda fizz, what is the gas in the bubbles?', ok: 'Carbon dioxide', bad: ['Helium', 'Oxygen', 'Nitrogen'],
+        right: 'Correct! The reaction makes carbon dioxide gas.', wrong: 'The gas is carbon dioxide. The vinegar and baking soda react to make it.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 6: ACIDS AND BASES
+     ========================================================= */
+  var LIQUIDS = [
+    { name: 'Lemon juice',      ph: 2,  col: 'Y', why: 'Citric acid makes lemons sour. It is an acid.' },
+    { name: 'Vinegar',          ph: 3,  col: 'n', why: 'Vinegar contains acetic acid. It is an acid.' },
+    { name: 'Pure water',       ph: 7,  col: 'C', why: 'Pure water is neutral, neither acid nor base.' },
+    { name: 'Baking soda water', ph: 9,  col: 'W', why: 'Baking soda is a mild base.' },
+    { name: 'Soapy water',      ph: 10, col: 'M', why: 'Soap is a base. That is why it feels slippery.' }
+  ];
+  function kindOf(ph) { return ph < 7 ? 'acid' : ph === 7 ? 'neutral' : 'base'; }
+  function colorWord(ph) { return ph <= 2 ? 'RED' : ph <= 4 ? 'ORANGE' : ph <= 6 ? 'YELLOW' : ph <= 7 ? 'GREEN' : ph <= 9 ? 'BLUE' : 'PURPLE'; }
+
+  function m6() {
+    newMission(5);
+    info({ scene: 'ph', pose: 'stand', title: 'MISSION 6: ACIDS AND BASES',
+      body: [say('The <b class="gold">pH scale</b> runs from 0 to 14 and tells us how acidic or basic a liquid is.'),
+             '<p class="board">Below 7: ACID\nExactly 7: NEUTRAL\nAbove 7: BASE</p>',
+             say('<b class="gold">pH paper</b> changes color when you dip it in a liquid. We read the color to find the pH.')],
+      next: function () {
+        info({ scene: 'ph', pose: 'stand', title: 'THE COLOR CHART',
+          body: [say('Here is the color chart for our pH paper:'),
+                 '<p class="board"><span style="color:#ff5555">RED</span>: 0 to 2 (acid)\n<span style="color:#ff9900">ORANGE</span>: 3 to 4 (acid)\n<span style="color:#ffff55">YELLOW</span>: 5 to 6 (acid)\n<span style="color:#55ff55">GREEN</span>: 7 (neutral)\n<span style="color:#7777ff">BLUE</span>: 8 to 9 (base)\n<span style="color:#ff55ff">PURPLE</span>: 10 and up (base)</p>',
+                 '<span class="hint">Safety: never taste or sniff lab liquids. We are only testing with paper!</span>'],
+          next: function () {
+            M.liq = shuffle(LIQUIDS.slice()); M.cols = M.liq.map(function (l) { return l.col; });
+            M.cur = 0; M.dipped = false; M.curPh = 0; M.summary = false; M.hint = 0; m6Test();
+          } });
+      } });
+  }
+  function m6Test() {
+    var L = M.liq[M.cur];
+    var title = 'TEST LIQUID ' + (M.cur + 1) + ' OF 5';
+    if (!M.dipped) {
+      render({ scene: 'ph', pose: 'stand', title: title,
+        body: [say('The arrow points to <b class="gold">' + L.name + '</b>. Dip a pH strip to see its color.')],
+        choices: [{ label: 'Dip the pH strip', run: function () { M.dipped = true; M.curPh = L.ph; sfx('bubble'); m6Test(); } }] });
+      return;
+    }
+    function pick(kind) {
+      return function () {
+        var ok = kind === kindOf(L.ph);
+        if (ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        render({ scene: 'ph', pose: ok ? 'cheer' : 'stand', title: ok ? 'CORRECT!' : 'NOT QUITE',
+          body: [say(L.name + ' has a pH of <b class="gold">' + L.ph + '</b>, which is ' + (kindOf(L.ph) === 'neutral' ? 'neutral' : 'an ' + kindOf(L.ph)) + '. ' + L.why)],
+          choices: [{ label: 'Continue', run: function () {
+            M.cur++; M.dipped = false; M.hint = 0;
+            if (M.cur >= M.liq.length) m6Summary(); else m6Test();
+          } }] });
+      };
+    }
+    render({ scene: 'ph', pose: 'stand', title: title,
+      body: [say('The strip turned <b class="gold">' + colorWord(L.ph) + '</b>. Is ' + L.name.toLowerCase() + ' an acid, neutral, or a base?'),
+             hintLine(['Check the color chart. Red, orange, and yellow are acids.', 'Green is neutral. Blue and purple are bases.'])],
+      choices: [{ label: 'Acid', run: pick('acid') }, { label: 'Neutral', run: pick('neutral') }, { label: 'Base', run: pick('base') }, hintBtn(m6Test)] });
+  }
+  function m6Summary() {
+    M.summary = true; M.liq = M.liq.slice().sort(function (a, b) { return a.ph - b.ph; });
+    sfx('pass');
+    render({ scene: 'ph', pose: 'cheer', title: 'THE PH SCALE',
+      body: [say('Nice testing! Here is where all five liquids land on the pH scale, from acid on the left to base on the right.'),
+             '<p class="board">' + M.liq.map(function (l) { return 'pH ' + (l.ph < 10 ? ' ' : '') + l.ph + '  ' + l.name; }).join('\n') + '</p>'],
+      choices: [{ label: 'Continue', run: m6Quiz }] });
+  }
+  function m6Quiz() {
+    M.summary = false;
+    quizSeq('ph', 'PH CHECK', [
+      { q: 'A liquid has a pH of 3. What is it?', ok: 'An acid', bad: ['Neutral', 'A base', 'Impossible to tell'],
+        right: 'Yes! Anything below 7 is an acid.', wrong: 'It is an acid. Anything below 7 on the pH scale is an acid.' },
+      { q: 'Which pH is the most basic?', ok: '10', bad: ['2', '4', '7'],
+        right: 'Correct! The higher the pH, the more basic the liquid.', wrong: 'The answer is 10. The higher the pH above 7, the more basic the liquid.' }
+    ], finishMission);
+  }
+
+
+  /* =========================================================
+     MISSION 7: THE REACTION MACHINE  (mistakes dent the machine)
+     ========================================================= */
+  var M7_PAIRS = [
+    { t: 'Vinegar + baking soda', ok: true },
+    { t: 'Water + sugar', ok: false, why: 'Sugar only dissolves in water. No new substance forms, so there is no gas.' },
+    { t: 'Water + salt', ok: false, why: 'Salt just dissolves in water, which is a physical change. No gas is made.' },
+    { t: 'Vinegar + salt', ok: false, why: 'They just mix together. Nothing reacts, so no gas forms.' }
+  ];
+  var M7_SCOOPS = [
+    { t: '1 scoop of baking soda', k: 'low' },
+    { t: '3 scoops of baking soda', k: 'ok' },
+    { t: '8 scoops of baking soda', k: 'high' }
+  ];
+  var M7_MASS = [
+    { q: 'The scale reads 100 g before the reaction in the SEALED machine. What will it read after the reaction?', ok: '100 g. The mass stays the same.', bad: ['More than 100 g', 'Less than 100 g', '0 g'],
+      right: 'Yes! Atoms are rearranged in a reaction, not created or destroyed. In a sealed container, the total mass stays the same. This is called conservation of mass.',
+      wrong: 'The mass stays at 100 g. Atoms are only rearranged in a reaction, never created or destroyed, so the total mass in a sealed container does not change.' },
+    { q: 'Now you run the same reaction in an OPEN cup on the scale, and the reading drops a little. Why?', ok: 'The carbon dioxide gas escaped into the air', bad: ['Atoms were destroyed', 'The baking soda turned into nothing', 'The scale is broken'],
+      right: 'Correct! The gas floated away, and its mass left the cup with it. Nothing was destroyed.',
+      wrong: 'The carbon dioxide gas escaped into the air, and its mass left the cup with it. Atoms are never destroyed.' }
+  ];
+  var M7_VOCAB = [
+    { q: 'In a chemical reaction, what are the starting materials called?', ok: 'Reactants', bad: ['Products', 'Mixtures', 'Solids'],
+      right: 'Right! Reactants go in, and products come out.', wrong: 'They are called reactants. The new substances that come out are called products.' },
+    { q: 'Which of these is a PRODUCT of the vinegar and baking soda reaction?', ok: 'Carbon dioxide gas', bad: ['Vinegar', 'Baking soda', 'A magnet'],
+      right: 'Correct! Vinegar and baking soda are the reactants. Carbon dioxide is one of the new substances they make.', wrong: 'Carbon dioxide gas is a product. Vinegar and baking soda are the reactants that you put in.' }
+  ];
+
+  function m7() {
+    newMission(6);
+    M.dents = 0; M.gas = 0; M.pressure = 0.1; M.hint = 0;
+    PROG.dented = false;
+    info({ scene: 'machine', pose: 'stand', title: 'MISSION 7: THE REACTION MACHINE',
+      body: [say('This is my Reaction Machine! You feed in <b class="gold">reactants</b>, the starting materials. A chemical reaction changes them into new substances called <b class="gold">products</b>.'),
+             '<p class="board">REACTANTS  ->  PRODUCTS\nvinegar + baking soda  ->  carbon dioxide gas + water + a salt</p>'],
+      next: function () {
+        info({ scene: 'machine', pose: 'oops', title: 'WATCH OUT FOR DENTS',
+          body: [say('This mission is different. If you make a mistake, the machine goes <b class="bad">BONK</b> and gets a dent.'),
+                 '<p class="board">1 dent: no problem.\n2 dents: be careful!\n<span class="bad">3 dents: the machine breaks down and the mission fails.</span></p>',
+                 say('Do not worry, machines can be fixed, and you can always try again. A good plan: use what you learned in Missions 5 and 6.')],
+          next: function () { M.optsA = shuffle(M7_PAIRS.slice()); m7Load(); } });
+      } });
+  }
+
+  // A mistake: add a dent, or break the machine on the third one.
+  function m7Bonk(msg, next) {
+    M.dents++; sfx('bonk'); sfx('wrong', 0.2);
+    if (M.dents >= 3) { m7Fail(msg); return; }
+    render({ scene: 'machine', pose: 'oops', bonk: true, title: 'BONK!',
+      body: ['<p class="bad">BONK! The machine takes a dent.</p>', '<p class="board">DENTS: ' + M.dents + ' OF 3</p>', say(msg)],
+      choices: [{ label: 'Continue', run: next }] });
+  }
+
+  function m7Fail(msg) {
+    PROG.dented = true; saveP(); sfx('fail', 0.25);
+    render({ scene: 'machine', pose: 'oops', bonk: true, title: 'OUT OF ORDER',
+      body: ['<p class="bad">BONK! That was the third dent. The machine is out of order.</p>', say(msg),
+             say('Oh no. The machine is too dented to run. Do not worry. Every scientist breaks a machine sometimes! Check your lab notebook, and we will fix it up and try again.')],
+      choices: [
+        { label: 'Fix the machine and try again', run: function () {
+            PROG.dented = false; saveP();
+            M.dents = 0; M.gas = 0; M.pressure = 0.1; M.hint = 0; M.mistakes = 0; M.optsA = shuffle(M7_PAIRS.slice()); m7Load();
+          } },
+        { label: 'Back to the lab', run: hub }
+      ] });
+  }
+
+  function m7Load() {
+    var ch = M.optsA.map(function (o) {
+      return { label: o.t, run: function () {
+        if (o.ok) {
+          M.gas = 0.4; sfx('fizz');
+          render({ scene: 'machine', pose: 'cheer', title: 'FIZZ!',
+            body: ['<p class="good">CORRECT!</p>', say('Fizz! Vinegar and baking soda react and make <b class="gold">carbon dioxide</b> gas, and the balloon begins to swell. A new substance formed, so this is a chemical reaction.')],
+            choices: [{ label: 'Continue', run: function () { M.hint = 0; m7Amount(); } }] });
+        } else {
+          m7Bonk(o.why + ' Pick a pair that really reacts.', m7Load);
+        }
+      } };
+    });
+    ch.push(hintBtn(m7Load));
+    render({ scene: 'machine', pose: 'stand', title: 'LOAD THE REACTANTS',
+      body: [say('Goal: make <b class="gold">carbon dioxide gas</b> to inflate the balloon. Which pair of reactants will react and make gas?'),
+             '<p class="board">DENTS: ' + M.dents + ' OF 3</p>',
+             hintLine(['A reaction makes a NEW substance. Dissolving is not a reaction.', 'Think back to the Mix Lab in Mission 5.', 'The pair that fizzed in the Mix Lab: vinegar and baking soda.'])],
+      choices: ch });
+  }
+
+  function m7Amount() {
+    var ch = M7_SCOOPS.map(function (o) {
+      return { label: o.t, run: function () {
+        if (o.k === 'ok') {
+          M.gas = 1; M.pressure = 0.55; sfx('pass');
+          render({ scene: 'machine', pose: 'cheer', title: 'JUST RIGHT!',
+            body: ['<p class="good">PERFECT AMOUNT!</p>', say('The balloon fills up, and the gauge stays out of the red zone. Enough gas, but not too much pressure.')],
+            choices: [{ label: 'Continue', run: function () { M.hint = 0; M.pressure = 0.1; m7Quiz(M7_MASS, function () { m7Quiz(M7_VOCAB, m7Done); }); } }] });
+        } else if (o.k === 'low') {
+          M.gas = 0.55; M.pressure = 0.25;
+          render({ scene: 'machine', pose: 'stand', title: 'NOT ENOUGH',
+            body: [say('Only a little gas formed, so the balloon is only half full. No dents this time. Try a bigger amount!')],
+            choices: [{ label: 'Try again', run: function () { M.pressure = 0.1; m7Amount(); } }] });
+        } else {
+          M.pressure = 1;
+          m7Bonk('The tank is sealed, so the gas had nowhere to go. Too much gas means too much pressure, and the machine bulged and dented. (In real life, never seal a reaction that makes gas.)',
+                 function () { M.pressure = 0.1; m7Amount(); });
+        }
+      } };
+    });
+    ch.push(hintBtn(m7Amount));
+    render({ scene: 'machine', pose: 'stand', title: 'HOW MUCH?',
+      body: [say('The machine\'s tank is sealed. Gas takes up space and pushes on the walls. That push is called <b class="gold">pressure</b>, and the gauge shows it. How much baking soda will fill the balloon without overloading the tank?'),
+             '<p class="board">DENTS: ' + M.dents + ' OF 3</p>',
+             hintLine(['The red zone on the gauge means danger.', 'One scoop makes very little gas, and eight makes a huge amount of gas.', 'Choose the middle amount: not too little and not too much.'])],
+      choices: ch });
+  }
+
+  function m7Quiz(list, next) {
+    var k = 0;
+    (function step() {
+      if (k >= list.length) return next();
+      var q = list[k++], opts = shuffle([{ t: q.ok, ok: true }].concat(q.bad.map(function (b) { return { t: b, ok: false }; })));
+      render({ scene: 'machine', pose: 'stand', title: 'MACHINE CHECK',
+        body: [say('The machine asks a question. Answer carefully!'), '<p class="q">' + q.q + '</p>', '<p class="board">DENTS: ' + M.dents + ' OF 3</p>'],
+        choices: opts.map(function (o) {
+          return { label: o.t, run: function () {
+            if (o.ok) { sfx('correct', 0.08); render({ scene: 'machine', pose: 'cheer', title: 'CORRECT!', body: ['<p class="good">CORRECT!</p>', say(q.right)], choices: [{ label: 'Continue', run: step }] }); }
+            else m7Bonk(q.wrong, step);
+          } };
+        }) });
+    })();
+  }
+
+  function m7Done() {
+    M.mistakes = [0, 2, 4][M.dents];
+    PROG.dented = false;
+    finishMission();
+  }
+
+  /* =========================================================
+     HUB, NOTEBOOK, GRADUATION, TITLE
+     ========================================================= */
+  var RUNNERS = [m1, m2, m3, m4, m5, m6, m7];
+
+  function hub() {
+    M = null; PROG.started = true;
+    var all = PROG.done.every(Boolean), any = PROG.done.some(Boolean);
+    var ch = MISSIONS.map(function (m, i) {
+      return { label: '<b>' + (i + 1) + '. ' + m.name + '</b> - ' + m.blurb + (PROG.done[i] ? ' <span class="gold">' + starText(PROG.stars[i]) + '</span>' : ''), run: RUNNERS[i] };
+    });
+    ch.push({ label: 'Open my lab notebook', run: notebook });
+    if (all) ch.push({ label: '<span class="gold">Graduation day!</span>', run: finale });
+    render({ scene: 'hub', pose: 'stand', title: 'YONAS\' LAB',
+      body: [say(any ? 'Welcome back to the lab! Pick a mission. Any order works, but the order shown is the best way to learn.' : 'Welcome to my lab! I am Yonas. Pick a mission to start. Mission 1 is a great place to begin.'),
+             PROG.dented ? say('My Reaction Machine is still dented from last time. Want to fix it up with Mission 7?') : '',
+             '<span class="hint">Finish all 7 missions to graduate. Stars: 3 for few mistakes, so take your time.</span>'],
+      choices: ch });
+  }
+
+  function notebook() {
+    var any = PROG.done.some(Boolean);
+    render({ scene: 'hub', pose: 'stand', title: 'LAB NOTEBOOK',
+      body: [say(any ? 'Here is everything you have learned so far:' : 'Your notebook is empty. Finish a mission and I will write down what you learned.'),
+             any ? '<p class="board">' + NOTES.filter(function (n, i) { return PROG.done[i]; }).join('\n\n') + '</p>' : ''],
+      choices: [{ label: 'Back to the lab', run: hub }, { label: 'Erase my progress', run: erase }] });
+  }
+  function erase() {
+    render({ scene: 'hub', pose: 'stand', title: 'ERASE PROGRESS?',
+      body: [say('This clears all your stars and your notebook. Are you sure?')],
+      choices: [{ label: 'Keep my progress', run: notebook },
+                { label: 'Yes, erase everything', run: function () { PROG.stars = [0, 0, 0, 0, 0, 0, 0]; PROG.done = [false, false, false, false, false, false, false]; PROG.dented = false; saveP(); hub(); } }] });
+  }
+
+  function finale() {
+    var tot = totalStars(), rank = tot >= 19 ? 'MASTER CHEMIST' : tot >= 14 ? 'LAB TECHNICIAN' : 'JUNIOR CHEMIST';
+    sfx('pass');
+    render({ scene: 'win', title: 'GRADUATION DAY!',
+      body: [say('You finished every mission in my lab. I could not be prouder!'),
+             '<p class="board">CERTIFICATE OF LAB SKILL\nMISSIONS: 7 OF 7\nSTARS: ' + tot + ' OF 21\nRANK: <span class="gold">' + rank + '</span></p>',
+             '<span class="hint">Want more stars? Go back and retry any mission for a better score.</span>'],
+      choices: [{ label: 'Back to the lab', run: hub }] });
+  }
+
+  function title() {
+    render({ scene: 'title', big: 'YONAS\' LAB',
+      body: ['<p class="hint" style="margin-top:0">A Chemistry Adventure</p>',
+             'Meet Yonas, a wild-haired chemist with a lab full of surprises. Complete 7 short missions about atoms, matter, mixtures, reactions, and more. Yonas explains everything, and hints are always one press away.'],
+      choices: [
+        { label: 'Enter the lab', run: hub },
+        { label: 'How to play', run: function () {
+            render({ scene: 'hub', pose: 'stand', title: 'HOW TO PLAY',
+              body: [say('It is easy! Here is how my lab works:'),
+                     '<p class="board">Click a choice, or press its number key.\nStuck? Choose "Ask Yonas for a hint" as many times as you like.\nEarn up to 3 stars per mission. Fewer mistakes means more stars.\nYour progress saves on this computer.\nPress M to turn sound on or off.</p>'],
+              choices: [{ label: 'Back', run: title }] });
+          } }
+      ] });
+  }
+
+  /* ---------- sound button ---------- */
+  var sndBtn = $('snd');
+  function sndLabel() {
+    sndBtn.textContent = 'Sound: ' + (Snd.on ? 'On' : 'Off');
+    sndBtn.setAttribute('aria-pressed', Snd.on ? 'true' : 'false');
+  }
+  try { Snd.on = localStorage.getItem('roadToLawSound') === '1'; } catch (e) { /* ignore */ }
+  sndLabel();
+  sndBtn.addEventListener('click', function () { Snd.set(!Snd.on); });
+  function unlockAudio() {
+    if (Snd.on && !Snd.ctx && Snd.init()) { Snd.ctx.resume(); Snd.cur = null; Snd.play(Snd.want); }
+  }
+  document.addEventListener('pointerdown', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
+  document.addEventListener('visibilitychange', function () {
+    if (!Snd.ctx) return;
+    if (document.hidden) Snd.ctx.suspend(); else if (Snd.on) Snd.ctx.resume();
+  });
+
+  loadP();
+  title();
+})();
+</script>
+</body>
+</html>

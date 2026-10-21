@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Richard's Rail Sales - Sales and Math on the Rails</title>
+<style>
+  :root {
+    --k:#000; --b:#0000aa; --g:#00aa00; --n:#aa5500; --l:#aaaaaa; --d:#555555;
+    --B:#5555ff; --G:#55ff55; --C:#55ffff; --R:#ff5555; --M:#ff55ff; --Y:#ffff55; --W:#ffffff;
+    --mono: "Courier New", Courier, "Lucida Console", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #000;
+    color: var(--W);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  a { color: var(--C); }
+  a:hover { color: var(--Y); }
+  :focus-visible { outline: 3px solid var(--Y); outline-offset: 2px; }
+
+  .wrap { max-width: 960px; margin: 0 auto; padding: 14px 14px 40px; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 0 12px; font-size: 16px; }
+  .snd {
+    font: inherit; font-size: 16px; color: var(--Y); background: #000; cursor: pointer;
+    border: 2px solid var(--W); padding: 6px 14px; min-height: 44px;
+  }
+  .snd:hover, .snd:focus-visible { background: var(--W); color: #000; outline: none; }
+  .snd[aria-pressed="true"] { color: var(--G); }
+  .snd[aria-pressed="true"]:hover, .snd[aria-pressed="true"]:focus-visible { color: #006600; }
+
+  .frame { border: 4px solid var(--W); box-shadow: 0 0 0 4px #000, 0 0 0 8px var(--B); background: #000; }
+  .screen { position: relative; border-bottom: 4px solid var(--W); }
+  .screen::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+  }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; background: #000; }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 22px;
+    padding: 8px 18px; font-size: 15px;
+    border-bottom: 2px dotted var(--d);
+  }
+  #hud[hidden] { display: none; }
+  #hud .lbl { color: var(--l); }
+  #hud .low { color: var(--R); }
+
+  #text { padding: 16px 18px 12px; outline: none; }
+  #text p { margin: 0 0 .75em; max-width: 64ch; }
+  h1.title {
+    margin: 4px 0 6px; font-size: clamp(34px, 9vw, 64px); line-height: 1; letter-spacing: .05em;
+    color: var(--Y); text-shadow: 4px 4px 0 var(--R), 8px 8px 0 var(--B);
+  }
+  h2 { margin: 0 0 .6em; font-size: 20px; letter-spacing: .04em; color: var(--Y); }
+  .sub { color: var(--C); margin-top: .9em !important; }
+  .gold { color: var(--Y); }
+  .good { color: var(--G); }
+  .bad  { color: var(--R); }
+  .hint { color: var(--C); }
+  .q    { color: var(--W); background: var(--b); padding: 6px 10px; }
+  .fx   { font-size: 16px; }
+  .fx span { margin-right: 18px; }
+  .board { white-space: pre-wrap; border: 2px solid var(--d); padding: 8px 12px; max-width: 46ch; }
+  .steps { margin: 0 0 .75em; padding-left: 1.6em; max-width: 64ch; }
+  .steps li { margin: .45em 0; }
+
+  #choices { padding: 0 10px 18px; }
+  .choice {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    font: inherit; color: var(--W); background: transparent;
+    border: 0; padding: 8px 8px; margin: 2px 0; min-height: 44px;
+  }
+  .choice .n { color: var(--Y); }
+  .choice:hover, .choice:focus-visible { background: var(--W); color: #000; outline: none; }
+  .choice:hover .n, .choice:focus-visible .n { color: #aa0000; }
+
+  .foot { margin-top: 18px; font-size: 14px; color: var(--l); max-width: 64ch; }
+
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    #text { padding: 12px 12px 8px; }
+    #choices { padding: 0 4px 14px; }
+    #hud { padding: 8px 12px; font-size: 13px; }
+  }
+
+  .who { color: var(--C); }
+  .who::after { content: ":"; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="top"><a href="https://jaxtechnology.github.io/">Back to Jax Technology</a>
+    <button id="snd" class="snd" type="button" aria-pressed="false">Sound: Off</button></p>
+
+  <div class="frame">
+    <div class="screen"><canvas id="screen" width="320" height="160" aria-hidden="true"></canvas></div>
+    <div id="hud" hidden></div>
+    <div id="text" tabindex="-1" aria-live="polite"></div>
+    <div id="choices" role="group" aria-label="Your choices"></div>
+  </div>
+
+  <p class="foot">Richard's Rail Sales is a classroom game about sales skills and math. The railroad scenes are for fun, and the numbers are simplified for the game. Click a choice, or press its number key. Press M to turn sound on or off. The music and sounds are made right in your browser.</p>
+</div>
+
+<noscript><p style="padding:20px">This game needs JavaScript turned on.</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* =========================================================
+     DRAWING TOOLKIT  (320 x 160 canvas, 16-color EGA palette)
+     ========================================================= */
+  var cv = $('screen');
+  var ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  var P = { k:'#000000', b:'#0000aa', g:'#00aa00', c:'#00aaaa', r:'#aa0000', m:'#aa00aa', n:'#aa5500', l:'#aaaaaa',
+            d:'#555555', B:'#5555ff', G:'#55ff55', C:'#55ffff', R:'#ff5555', M:'#ff55ff', Y:'#ffff55', W:'#ffffff' };
+
+  function R(x, y, w, h, c) {
+    ctx.fillStyle = P[c] || c;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  }
+  function circle(cx, cy, r, c) {
+    for (var y = -r; y <= r; y++) {
+      var w = Math.floor(Math.sqrt(r * r - y * y));
+      R(cx - w, cy + y, 2 * w + 1, 1, c);
+    }
+  }
+  function tri(cx, topY, half, h, c) {
+    for (var i = 0; i < h; i++) { var w = half * 2 * (i + 1) / h; R(cx - w / 2, topY + i, w, 1, c); }
+  }
+  function sky(h, cols) {
+    var bh = Math.ceil(h / cols.length);
+    cols.forEach(function (c, i) { R(0, i * bh, 320, bh, c); });
+  }
+  function lcg(seed) {
+    var s = seed >>> 0;
+    return function () { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  }
+
+  var t = 0; // animation tick
+
+  var STARS = (function () {
+    var r = lcg(7), a = [];
+    for (var i = 0; i < 70; i++) a.push([Math.floor(r() * 320), Math.floor(r() * 110), Math.floor(r() * 7)]);
+    return a;
+  })();
+  function stars() {
+    STARS.forEach(function (s) { if ((t + s[2]) % 9 !== 0) R(s[0], s[1], 1, 1, s[2] % 3 === 0 ? 'Y' : 'W'); });
+  }
+  function cloud(x, y) { R(x, y + 8, 32, 4, 'W'); R(x + 4, y + 4, 24, 8, 'W'); R(x + 10, y, 14, 10, 'W'); }
+
+
+  /* =========================================================
+     SPRITES + SCENES  (Richard's Rail Sales)
+     ========================================================= */
+  // Pixel sprites for Richard (32 x 46). One string per row. "." is transparent.
+var RICHARD_PAL = {"n": "#d6a06c", "h": "#e8b987", "s": "#b9824f", "k": "#000000", "W": "#ffffff", "J": "#2f3140", "j": "#4a4d68", "P": "#262734", "r": "#cc2233", "B": "#3355cc", "l": "#aaaaaa", "d": "#555555", "b": "#8a4a14", "y": "#ffff55", "C": "#55ffff", "R": "#ff5555"};
+var RICHARD = {
+  stand: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............nhhnnnnn............",
+    "..........nnhhhnnnnnnn..........",
+    ".........nnhhnnnnnnnnnn.........",
+    ".........nnnhnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnkkknnkkknnn.........",
+    "........snnnnnnnnnnnnnns........",
+    "........nnnWkknnnnkkWnnn........",
+    "........nnnnssnnnnssnnnn........",
+    "........snnnnnnssnnnnnns........",
+    ".........nnnnnnssnnnnnn.........",
+    ".........nnhnnnnnnnnhnn.........",
+    ".........nnsnWWWWWWnsnn.........",
+    ".........nnnnrrrrrrnnnn.........",
+    ".........nnnnnssssnnnnn.........",
+    "..........nnnnnnnnnnnn..........",
+    "............nnnnnnnn............",
+    "............ssssssss............",
+    ".......JJJJJWWWWWWWWJJJJJ.......",
+    ".......JJJJJJjWrrWjJJJJJJ.......",
+    ".....JJJJJJJJjWBBWjJJJJJJJJ.....",
+    ".....JJJJJJJJjWrrWjJJJJJJJJ.....",
+    ".....JJJJJJJjJWWWWJjJJJJJJJ.....",
+    ".....JJJJJJJjJJrrJJjJJJJJJJ.....",
+    ".....JJJJJJJjJJBBJJjJJJJJJJ.....",
+    ".....JJJJJJjJJJrrJJJjJJJJJJ.....",
+    ".....JJJJJJjJJJWWJJJjJJJJJJ.....",
+    ".....JJJJJJJJJJrrJJJJJJJJJJ.....",
+    ".....JJJJJJJJJJBBJJJJJJJJJJ.....",
+    ".....JJJJJJJJJJJJJJJJJJJJJJ.....",
+    ".....nnnJJJJJJJJJJJJJJJJnnn.....",
+    ".....nnnjjjjjjjjjjjjjjjjnnn.....",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+  cheer: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............nhhnnnnn............",
+    "..........nnhhhnnnnnnn..........",
+    ".........nnhhnnnnnnnnnn.........",
+    ".........nnnhnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnkkknnkkknnn.........",
+    ".nnnn...snnnnnnnnnnnnnns..nnnn..",
+    ".nnnn...nnnWkknnnnkkWnnn..nnnn..",
+    ".nnnn...nnnnssnnnnssnnnn..nnnn..",
+    ".nnnn...snnnnnnssnnnnnns..nnnn..",
+    "..JJJ....nnnnnnssnnnnnn....JJJ..",
+    "..JJJJ...nnhnnnnnnnnhnn...JJJJ..",
+    "..JJJJ...nnsWWWWWWWWsnn...JJJJ..",
+    "...JJJ...nnnnrrrrrrnnnn...JJJ...",
+    "...JJJJ..nnnnnssssnnnnn..JJJJ...",
+    "...JJJJ...nnnnnnnnnnnn...JJJJ...",
+    "....JJJJ....nnnnnnnn....JJJJ....",
+    "....JJJJ....ssssssss....JJJJ....",
+    ".....JJJJJJJWWWWWWWWJJJJJJJ.....",
+    ".....JJJJJJJJjWrrWjJJJJJJJJ.....",
+    ".....JJJJJJJJjWBBWjJJJJJJJJ.....",
+    "......JJJJJJJjWrrWjJJJJJJJ......",
+    "......JJJJJJjJWWWWJjJJJJJJ......",
+    "........JJJJjJJrrJJjJJJJ........",
+    "........JJJJjJJBBJJjJJJJ........",
+    "........JJJjJJJrrJJJjJJJ........",
+    "........JJJjJJJWWJJJjJJJ........",
+    "........JJJJJJJrrJJJJJJJ........",
+    "........JJJJJJJBBJJJJJJJ........",
+    "........JJJJJJJJJJJJJJJJ........",
+    "........JJJJJJJJJJJJJJJJ........",
+    "........jjjjjjjjjjjjjjjj........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+  oops: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............nhhnnnnn............",
+    "..........nnhhhnnnnnnn..........",
+    ".........nnhhnnnnnnnnnn.........",
+    ".........nnnhnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnkkknnkkknnn.........",
+    "........snnnnnnnnnnnnnns........",
+    "........nnnWWWnnnnWWWnnn........",
+    "........nnnnWknnnnkWnnnn........",
+    "........snnnnnnssnnnnnns........",
+    ".........nnnnnnssnnnnnn.........",
+    ".........nnhnnnnnnnnhnn.........",
+    ".........nnsnnrrrrnnsnn.........",
+    "nnn......nnnnnnrrnnnnnn......nnn",
+    "nnn......nnnnnssssnnnnn......nnn",
+    "nnn.......nnnnnnnnnnnn.......nnn",
+    "JJJJ........nnnnnnnn........JJJJ",
+    "JJJJJJ......ssssssss......JJJJJJ",
+    ".JJJJJJJJJJJWWWWWWWWJJJJJJJJJJJ.",
+    "..JJJJJJJJJJJjWrrWjJJJJJJJJJJJ..",
+    "....JJJJJJJJJjWBBWjJJJJJJJJJ....",
+    ".....JJJJJJJJjWrrWjJJJJJJJJ.....",
+    "......JJJJJJjJWWWWJjJJJJJJ......",
+    "........JJJJjJJrrJJjJJJJ........",
+    "........JJJJjJJBBJJjJJJJ........",
+    "........JJJjJJJrrJJJjJJJ........",
+    "........JJJjJJJWWJJJjJJJ........",
+    "........JJJJJJJrrJJJJJJJ........",
+    "........JJJJJJJBBJJJJJJJ........",
+    "........JJJJJJJJJJJJJJJJ........",
+    "........JJJJJJJJJJJJJJJJ........",
+    "........jjjjjjjjjjjjjjjj........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+  clip: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............nhhnnnnn............",
+    "..........nnhhhnnnnnnn..........",
+    ".........nnhhnnnnnnnnnn.........",
+    ".........nnnhnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnnnnnnnnnnnn.........",
+    ".........nnnkkknnkkknnn.........",
+    "........snnnnnnnnnnnnnns........",
+    "........nnnWkknnnnkkWnnn........",
+    "........nnnnssnnnnssnnnn........",
+    "........snnnnnnssnnnnnns........",
+    ".........nnnnnnssnnnnnn.........",
+    ".........nnhnnnnnnnnhnn.........",
+    ".........nnsnWWWWWWnsnn.........",
+    ".........nnnnrrrrrrnnnn.........",
+    ".........nnnnnssssnnnnn.........",
+    "..........nnnnnnnnnnnn..........",
+    "............nnnnnnnn............",
+    "............ssssssss............",
+    ".......JJJJJWWWWWWWWJJJJJ.......",
+    ".......JJJJJJjWrrWjJJJJJJ.......",
+    "........JJJJJjWBBWjJJJJJJJJ.....",
+    "......JJJJJJJjWrrWjJJJJJJJJ.....",
+    "......JJJJJJjJWWWWJjJJJJJJJ.....",
+    "......JJJJJJjJJrrJJjJJJJJJJ.....",
+    ".......JJJJJjJJBBJJjJJJJJJJ.....",
+    "........JJJllllrrJJJjJJJJJJ.....",
+    "........JbbllllbbJJJjJJJJJJ.....",
+    "........JbWWWWWWbJJJJJJJJJJ.....",
+    "........JbWWWWWWbJJJJJJJJJJ.....",
+    "........JbWddddWnnJJJJJJJJJ.....",
+    "........JbWWWWWWnnJJJJJJnnn.....",
+    "........jbWddddWbjjjjjjjnnn.....",
+    ".........bWWWWWWbPPPPP..........",
+    ".........bWdddWWbPPPPP..........",
+    ".........bWWWWWWbPPPPP..........",
+    ".........bbbbbbbbPPPPP..........",
+    "..........PPPPP..PPPPP..........",
+    ".........kkkkkk..kkkkkk........."
+  ],
+};
+
+
+  function richard(x, y, pose, s) {
+    var g = RICHARD[pose] || RICHARD.stand;
+    for (var j = 0; j < g.length; j++) {
+      var row = g[j], i = 0;
+      while (i < row.length) {
+        var ch = row.charAt(i);
+        if (ch === '.') { i++; continue; }
+        var k = i; while (k < row.length && row.charAt(k) === ch) k++;
+        R(x + i * s, y + j * s, (k - i) * s, s, RICHARD_PAL[ch]);
+        i = k;
+      }
+    }
+  }
+
+  var DIG = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001',
+             '111100111001111', '111100111101111', '111001010010010', '111101111101111', '111101111001111'];
+  function num(x, y, n, c) {
+    String(n).split('').forEach(function (d, k) {
+      var g = DIG[Number(d)];
+      for (var i = 0; i < 15; i++) if (g.charAt(i) === '1') R(x + k * 4 + (i % 3), y + Math.floor(i / 3), 1, 1, c);
+    });
+  }
+  function star(x, y, c) {
+    R(x + 2, y, 1, 1, c); R(x + 1, y + 1, 3, 1, c); R(x, y + 2, 5, 1, c); R(x + 1, y + 3, 3, 1, c); R(x + 1, y + 4, 1, 1, c); R(x + 3, y + 4, 1, 1, c);
+  }
+
+  var view = { name: 'title' };
+  var M = null;
+  var PROG = { stars: [0, 0, 0, 0, 0, 0], done: [false, false, false, false, false, false], started: false };
+
+  var CAR_KINDS = ['box', 'hopper', 'tank', 'flat', 'reefer', 'cont'];
+
+  // A railcar, 40 wide. (x, y) is the top-left; wheels end about y + 24.
+  function railcar(x, y, kind, col) {
+    var W = 40;
+    if (kind === 'box') {
+      R(x, y + 2, W, 17, col || 'n'); R(x, y + 2, W, 2, 'rgba(255,255,255,0.3)');
+      R(x + 14, y + 6, 12, 13, 'rgba(0,0,0,0.3)'); R(x + 19, y + 6, 1, 13, 'rgba(0,0,0,0.4)');
+    } else if (kind === 'hopper') {
+      R(x, y + 2, W, 8, col || 'd'); tri(x + 11, y + 10, 8, 9, col || 'd'); tri(x + 29, y + 10, 8, 9, col || 'd');
+      R(x + 4, y, 6, 2, 'l'); R(x + 30, y, 6, 2, 'l'); R(x, y + 2, W, 1, 'l');
+    } else if (kind === 'tank') {
+      R(x + 5, y + 3, W - 10, 14, 'l'); circle(x + 6, y + 10, 7, 'l'); circle(x + W - 7, y + 10, 7, 'l');
+      R(x + 5, y + 3, W - 10, 2, 'W'); R(x + 14, y + 3, 2, 14, 'd'); R(x + 25, y + 3, 2, 14, 'd'); R(x + 18, y, 4, 3, 'd');
+    } else if (kind === 'flat') {
+      R(x, y + 15, W, 4, 'd');
+      R(x + 3, y + 4, 34, 3, 'n'); R(x + 3, y + 7, 34, 3, '#7a3a00'); R(x + 3, y + 10, 34, 3, 'n');
+      R(x + 8, y + 3, 2, 12, 'l'); R(x + 30, y + 3, 2, 12, 'l');
+    } else if (kind === 'reefer') {
+      R(x, y + 2, W, 17, 'W'); R(x, y + 10, W, 3, 'B'); R(x + 3, y + 4, 6, 5, 'C'); R(x, y + 2, W, 1, 'l'); R(x + 30, y + 5, 7, 4, 'l');
+    } else {
+      R(x, y + 17, W, 3, 'd');
+      R(x + 2, y + 8, 17, 9, 'R'); R(x + 21, y + 8, 17, 9, 'B'); R(x + 2, y, 17, 8, 'G'); R(x + 21, y, 17, 8, 'Y');
+      for (var i = 0; i < 4; i++) { R(x + 4 + i * 4, y + 8, 1, 9, 'rgba(0,0,0,0.25)'); R(x + 23 + i * 4, y + 8, 1, 9, 'rgba(0,0,0,0.25)'); R(x + 4 + i * 4, y, 1, 8, 'rgba(0,0,0,0.25)'); R(x + 23 + i * 4, y, 1, 8, 'rgba(0,0,0,0.25)'); }
+    }
+    circle(x + 8, y + 21, 3, 'k'); circle(x + W - 8, y + 21, 3, 'k'); R(x + W, y + 17, 2, 2, 'd');
+  }
+
+  // A small freight locomotive (original red-and-gray design).
+  function loco(x, y) {
+    R(x, y + 6, 54, 14, 'r'); R(x + 34, y, 18, 6, 'r'); R(x + 36, y + 2, 14, 1, 'R');
+    R(x + 39, y + 8, 8, 6, 'C'); R(x + 40, y + 9, 3, 2, 'W');
+    R(x + 52, y + 10, 4, 10, 'r'); R(x + 56, y + 13, 2, 3, 'Y');
+    R(x, y + 15, 54, 2, 'Y'); R(x + 5, y + 3, 7, 3, 'd'); R(x + 16, y + 3, 7, 3, 'd');
+    R(x, y + 19, 54, 3, 'd');
+    circle(x + 9, y + 23, 4, 'k'); circle(x + 25, y + 23, 4, 'k'); circle(x + 43, y + 23, 4, 'k');
+    R(x - 2, y + 17, 2, 2, 'd');
+  }
+
+  function cargoIcon(x, y, kind) {
+    R(x - 2, y - 2, 28, 24, 'rgba(255,255,255,0.7)'); R(x - 2, y - 2, 28, 1, 'k'); R(x - 2, y + 21, 28, 1, 'k'); R(x - 2, y - 2, 1, 24, 'k'); R(x + 25, y - 2, 1, 24, 'k');
+    if (kind === 'grain') { tri(x + 12, y + 2, 11, 16, 'Y'); for (var i = 0; i < 6; i++) R(x + 4 + i * 3, y + 14 + (i % 2) * 2, 2, 2, 'n'); }
+    else if (kind === 'liquid') { circle(x + 12, y + 13, 7, 'B'); tri(x + 12, y + 1, 5, 8, 'B'); R(x + 9, y + 11, 2, 2, 'C'); }
+    else if (kind === 'cold') { R(x + 11, y + 2, 2, 18, 'B'); R(x + 3, y + 10, 18, 2, 'B'); R(x + 5, y + 4, 2, 2, 'B'); R(x + 17, y + 4, 2, 2, 'B'); R(x + 5, y + 16, 2, 2, 'B'); R(x + 17, y + 16, 2, 2, 'B'); }
+    else if (kind === 'lumber') { R(x + 2, y + 4, 20, 4, 'n'); R(x + 2, y + 9, 20, 4, '#7a3a00'); R(x + 2, y + 14, 20, 4, 'n'); R(x + 2, y + 4, 2, 4, 'Y'); R(x + 2, y + 14, 2, 4, 'Y'); }
+    else if (kind === 'boxes') { R(x + 2, y + 10, 12, 9, 'n'); R(x + 12, y + 10, 10, 9, 'n'); R(x + 6, y + 2, 12, 8, 'n'); R(x + 6, y + 5, 12, 1, 'Y'); R(x + 7, y + 13, 1, 6, 'Y'); }
+    else { R(x + 2, y + 4, 20, 14, 'R'); for (var j = 0; j < 5; j++) R(x + 4 + j * 4, y + 4, 1, 14, 'rgba(0,0,0,0.25)'); R(x + 2, y + 16, 20, 2, 'd'); }
+  }
+
+  function folk(x, y, body, hat, kind) {
+    circle(x, y, 4, 'n'); R(x - 2, y, 1, 1, 'k'); R(x + 2, y, 1, 1, 'k'); R(x - 1, y + 2, 3, 1, 'r');
+    if (kind === 'straw') { R(x - 7, y - 4, 15, 2, hat); R(x - 4, y - 8, 9, 5, hat); }
+    else if (kind === 'cap') { R(x - 4, y - 5, 9, 3, hat); R(x + 1, y - 3, 8, 2, hat); }
+    else if (kind === 'chef') { R(x - 4, y - 6, 9, 3, 'W'); R(x - 3, y - 11, 7, 6, 'W'); }
+    else { R(x - 5, y - 5, 11, 3, hat); R(x - 3, y - 8, 7, 3, hat); }
+    R(x - 5, y + 4, 11, 14, body); R(x - 4, y + 18, 3, 7, 'd'); R(x + 1, y + 18, 3, 7, 'd'); R(x - 7, y + 6, 2, 8, body); R(x + 6, y + 6, 2, 8, body);
+  }
+
+  function yardBG() {
+    sky(100, ['C', 'C', 'C']); circle(284, 24, 11, 'Y');
+    cloud(((t * 0.3 + 40) % 360) - 40, 14); cloud(((t * 0.2 + 200) % 360) - 40, 34);
+    tri(56, 62, 66, 38, 'g'); tri(190, 56, 80, 44, 'g'); tri(290, 68, 50, 32, 'g');
+    R(0, 100, 320, 60, 'G'); R(0, 136, 320, 24, 'l');
+    R(0, 140, 320, 2, 'd'); R(0, 150, 320, 2, 'd');
+    for (var x = 0; x < 320; x += 8) R(x, 139, 3, 14, 'n');
+    R(0, 130, 98, 30, 'l'); R(0, 130, 98, 3, 'W'); R(94, 130, 4, 30, 'Y'); R(0, 133, 94, 1, 'd');
+  }
+
+  function miniCar(x, y, col) {
+    if (col) { R(x, y, 24, 12, col); R(x, y, 24, 2, 'rgba(255,255,255,0.35)'); R(x + 9, y + 3, 6, 9, 'rgba(0,0,0,0.3)'); }
+    else { R(x, y, 24, 1, 'd'); R(x, y + 11, 24, 1, 'd'); R(x, y, 1, 12, 'd'); R(x + 23, y, 1, 12, 'd'); }
+    R(x + 3, y + 12, 4, 3, 'k'); R(x + 17, y + 12, 4, 3, 'k');
+  }
+
+  var SCENES = {
+    title: function () {
+      yardBG();
+      var tx = reduce ? 150 : (((t * 4) % 560) - 40);
+      loco(tx, 112); railcar(tx - 44, 108, 'box', 'R'); railcar(tx - 88, 108, 'hopper', 'B'); railcar(tx - 132, 108, 'tank');
+      richard(34, 20, (reduce || t % 14 < 7) ? 'stand' : 'cheer', 3);
+    },
+    hub: function () {
+      yardBG();
+      R(104, 8, 200, 86, 'n'); R(108, 12, 192, 78, 'g');
+      for (var i = 0; i < 6; i++) {
+        var bx = 112 + i * 31;
+        num(bx + 11, 20, i + 1, 'W');
+        for (var s = 0; s < 3; s++) star(bx + 3 + s * 8, 34, PROG.stars[i] > s ? 'Y' : 'd');
+        R(bx + 4, 48, 19, 1, 'rgba(255,255,255,0.35)');
+      }
+      R(112, 58, 44, 1, 'W'); R(112, 64, 66, 1, 'W'); R(112, 70, 34, 1, 'W');
+      var tx = reduce ? 220 : (((t * 2) % 520) - 60);
+      loco(tx, 112); railcar(tx - 44, 108, 'flat'); railcar(tx - 88, 108, 'reefer');
+      richard(6, 58, view.pose || 'stand', 2);
+    },
+    cars: function () {
+      yardBG();
+      R(78, 58, 172, 3, 'd'); R(78, 110, 172, 3, 'd');
+      for (var i = 0; i < 6; i++) {
+        var cx = 84 + (i % 3) * 48, cy = i < 3 ? 32 : 84;
+        railcar(cx, cy, CAR_KINDS[i], i === 0 ? 'n' : (i === 1 ? 'B' : null));
+        R(cx + 1, cy - 12, 9, 9, 'k'); R(cx + 2, cy - 11, 7, 7, 'Y'); num(cx + 4, cy - 9, i + 1, 'k');
+      }
+      if (M && M.icon) { R(252, 36, 4, 4, 'Y'); cargoIcon(264, 36, M.icon); }
+      richard(4, 66, view.pose || 'stand', 2);
+    },
+    listen: function () {
+      yardBG();
+      var cu = M && M.cust != null ? M.cust : 0;
+      var look = [['R', 'straw', 'n'], ['B', 'cap', 'R'], ['m', 'hard', 'Y'], ['g', 'chef', 'W']][cu % 4];
+      folk(220, 98, look[0], look[2], look[1]);
+      R(120, 22, 120, 46, 'W'); R(120, 22, 120, 1, 'k'); R(120, 67, 120, 1, 'k'); R(120, 22, 1, 46, 'k'); R(239, 22, 1, 46, 'k');
+      tri(214, 68, 6, 10, 'W'); R(212, 68, 14, 1, 'W');
+      for (var d = 0; d < 3; d++) circle(160 + d * 14, 45, 3, (reduce || (t + d) % 6 < 3) ? 'd' : 'l');
+      richard(4, 66, 'clip', 2);
+    },
+    fill: function () {
+      yardBG();
+      var c = M && M.cs ? M.cs : { amount: 450, cap: 100 }, n = M ? M.cars : 0, col = M && M.cs ? M.cs.col : 'd';
+      var capTot = n * c.cap, mx = Math.max(c.amount, capTot, 1);
+      R(92, 22, 6, 6, 'Y'); R(102, 22, Math.round(c.amount / mx * 190), 6, 'Y');
+      R(92, 36, 6, 6, 'G'); R(102, 36, Math.max(1, Math.round(capTot / mx * 190)), 6, 'G');
+      for (var i = 0; i < 9; i++) miniCar(84 + i * 26, 110, i < n ? col : null);
+      richard(4, 66, view.pose || 'stand', 2);
+    },
+    price: function () {
+      yardBG();
+      var n = M && M.tcars ? M.tcars : 5, pr = M ? M.tprice : 0;
+      for (var i = 0; i < Math.min(12, n); i++) miniCar(86 + (i % 6) * 26, i < 6 ? 84 : 104, ['B', 'n', 'R'][i % 3]);
+      R(212, 22, 76, 34, 'Y'); R(212, 22, 76, 2, 'W'); R(214, 24, 72, 30, 'rgba(255,255,255,0.0)');
+      circle(218, 39, 3, 'n'); if (pr) num(228, 35, pr, 'k');
+      for (var k = 0; k < 4; k++) { R(100 + k * 22, 60 - k * 2, 16, 4, 'Y'); R(100 + k * 22, 64 - k * 2, 16, 2, 'n'); }
+      richard(4, 66, view.pose || 'stand', 2);
+    },
+    time: function () {
+      yardBG();
+      R(88, 74, 210, 3, 'n'); var cities = [[96, 'ATL?'], [116, ''], [290, '']];
+      [[96], [162], [290]].forEach(function (c) { circle(c[0], 75, 6, 'W'); circle(c[0], 75, 3, 'R'); });
+      var tx = reduce ? 160 : 96 + ((t * 3) % 194);
+      miniCar(tx - 10, 52, 'r'); miniCar(tx - 36, 52, 'B');
+      if (M && M.days != null) { for (var d = 0; d < Math.min(7, M.days); d++) { R(92 + d * 22, 100, 18, 18, 'W'); R(92 + d * 22, 100, 18, 3, 'r'); num(98 + d * 22, 108, d + 1, 'k'); } }
+      richard(4, 66, view.pose || 'stand', 2);
+    },
+    deal: function () {
+      yardBG();
+      folk(238, 100, 'm', 'Y', 'hard');
+      R(120, 112, 100, 8, 'n'); R(124, 120, 6, 18, 'n'); R(210, 120, 6, 18, 'n');
+      var b = M && M.bucks ? M.bucks : 0, h = Math.min(8, Math.floor(b / 3000) + (b > 0 ? 1 : 0));
+      for (var i = 0; i < h; i++) { R(150, 108 - i * 3, 18, 3, 'Y'); R(150, 110 - i * 3, 18, 1, 'n'); }
+      R(176, 104, 10, 8, 'W'); R(176, 104, 10, 1, 'k');
+      richard(4, 66, view.pose || 'stand', 2);
+    },
+    win: function () {
+      yardBG();
+      var cc = ['Y', 'R', 'C', 'M', 'G'];
+      var tx = reduce ? 220 : (((t * 5) % 560) - 220);
+      loco(tx, 112); railcar(tx - 44, 108, 'cont'); railcar(tx - 88, 108, 'reefer'); railcar(tx - 132, 108, 'tank');
+      for (var i = 0; i < 40; i++) R((i * 37) % 320, reduce ? (i * 53) % 130 : ((i * 53) + t * 3) % 130, 2, 2, cc[i % 5]);
+      richard(112, 6, 'cheer', 3);
+      var tot = PROG.stars.reduce(function (a, b) { return a + b; }, 0);
+      for (var s = 0; s < 6; s++) star(8 + s * 8, 8, tot > s * 3 ? 'Y' : 'd');
+    }
+  };
+
+  function draw() { (SCENES[view.name] || SCENES.title)(view); }
+  draw();
+  if (!reduce) setInterval(function () { t++; draw(); }, 130);
+
+  /* AUDIO START */
+  var NOTE_BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  function freqOf(n) {
+    var m = /^([A-G])(#?)(\d)$/.exec(n);
+    var midi = 12 * (Number(m[3]) + 1) + NOTE_BASE[m[1]] + (m[2] ? 1 : 0);
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+  function parseSeq(str) {
+    var ev = [], pos = 0;
+    str.trim().split(/\s+/).forEach(function (tok) {
+      var p = tok.split(':'), d = Number(p[1]);
+      if (p[0] !== '-') ev.push({ at: pos, f: freqOf(p[0]), d: d });
+      pos += d;
+    });
+    return { events: ev, len: pos };
+  }
+  function mkChan(str) {
+    var q = parseSeq(str), map = {};
+    q.events.forEach(function (e) { map[e.at] = e; });
+    return { map: map, len: q.len };
+  }
+  function mkTrack(d) {
+    var tr = { sd: 60 / d.tempo / 4, loop: d.loop !== false, lead: mkChan(d.lead), harm: mkChan(d.harm), bass: mkChan(d.bass), drums: d.drums || '' };
+    tr.len = tr.lead.len;
+    return tr;
+  }
+
+  var TRACKS = {
+    // Chugging, cheerful title theme (G major)
+    title: mkTrack({ tempo: 132,
+      lead: 'G4:2 B4:2 D5:2 G5:4 D5:2 B4:2 G4:2  A4:2 C5:2 E5:2 A5:4 E5:2 C5:2 A4:2  B4:2 D5:2 G5:2 B5:4 G5:2 D5:2 B4:2  D5:4 C5:4 B4:4 A4:2 G4:2',
+      harm: 'G3:2 D4:2 G4:2 D4:2 G3:2 D4:2 G4:2 D4:2  A3:2 E4:2 A4:2 E4:2 A3:2 E4:2 A4:2 E4:2  B3:2 D4:2 G4:2 D4:2 B3:2 D4:2 G4:2 D4:2  D4:4 C4:4 D4:8',
+      bass: 'G2:4 D3:4 G2:4 D3:4  A2:4 E3:4 A2:4 E3:4  G2:4 D3:4 G2:4 D3:4  D3:4 C3:4 D3:8',
+      drums: 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.h.s.hh' + 'k.h.s.h.k.k.ssss' }),
+    // Steady, friendly office loop (C major)
+    office: mkTrack({ tempo: 112,
+      lead: 'E5:2 -:2 G5:2 -:2 C6:4 B5:2 G5:2  D5:2 -:2 F5:2 -:2 A5:4 G5:2 F5:2  C5:2 -:2 E5:2 -:2 G5:4 F5:2 E5:2  D5:4 G4:4 C5:8',
+      harm: 'C4:2 G4:2 C5:2 G4:2 C4:2 G4:2 C5:2 G4:2  D4:2 A4:2 D5:2 A4:2 D4:2 A4:2 D5:2 A4:2  C4:2 G4:2 C5:2 G4:2 C4:2 G4:2 C5:2 G4:2  D4:4 G3:4 C4:8',
+      bass: 'C3:4 -:4 C3:4 -:4  D3:4 -:4 D3:4 -:4  C3:4 -:4 C3:4 -:4  D3:4 G2:4 C3:8',
+      drums: 'k.h.s.h.k.h.s.h.' + 'k.h.s.h.k.h.s.h.' + 'k.h.s.h.k.h.s.h.' + 'k.h.s.h.k.h.s.h.' }),
+    // Short victory fanfare (plays once)
+    win: mkTrack({ tempo: 140, loop: false,
+      lead: 'E5:2 G5:2 C6:2 E6:4 C6:2 E6:4  G6:4 F6:2 E6:2 C6:8',
+      harm: 'C4:2 E4:2 G4:2 C5:4 G4:2 C5:4  E4:4 D4:2 C4:2 C4:8',
+      bass: 'C3:4 G2:4 C3:4 G2:4  C3:4 G2:4 C3:8',
+      drums: 'k.h.s.h.k.h.s.hh' + 'k.k.s.s.kkkkssss' })
+  };
+
+  function audioCheck() {
+    var bad = [];
+    Object.keys(TRACKS).forEach(function (k) {
+      var t = TRACKS[k];
+      if (t.harm.len !== t.len) bad.push(k + ': harmony length ' + t.harm.len + ' vs ' + t.len);
+      if (t.bass.len !== t.len) bad.push(k + ': bass length ' + t.bass.len + ' vs ' + t.len);
+      if (t.drums.length && t.drums.length !== t.len) bad.push(k + ': drums length ' + t.drums.length + ' vs ' + t.len);
+    });
+    return bad;
+  }
+
+  var Snd = { ctx: null, master: null, bus: null, on: false, want: 'title', cur: null, tr: null, step: 0, next: 0, timer: null, noise: null, p25: null, p50: null };
+
+  function pulseWave(ctx, duty) {
+    var n = 32, re = new Float32Array(n + 1), im = new Float32Array(n + 1);
+    for (var k = 1; k <= n; k++) re[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+    return ctx.createPeriodicWave(re, im);
+  }
+
+  Snd.init = function () {
+    if (this.ctx) return true;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.3;
+      this.master.connect(this.ctx.destination);
+      var sr = this.ctx.sampleRate, buf = this.ctx.createBuffer(1, sr, sr), d = buf.getChannelData(0);
+      for (var i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
+      this.noise = buf;
+      this.p25 = pulseWave(this.ctx, 0.25);
+      this.p50 = pulseWave(this.ctx, 0.5);
+    } catch (e) { this.ctx = null; return false; }
+    return true;
+  };
+
+  Snd.note = function (dest, kind, f, when, dur, vol, slideTo) {
+    var c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    if (kind === 'p25') o.setPeriodicWave(this.p25);
+    else if (kind === 'p50') o.setPeriodicWave(this.p50);
+    else o.type = kind === 'saw' ? 'sawtooth' : 'triangle';
+    o.frequency.setValueAtTime(f, when);
+    if (slideTo) o.frequency.linearRampToValueAtTime(slideTo, when + dur);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.006);
+    g.gain.setValueAtTime(vol, when + Math.max(0.01, dur - 0.03));
+    g.gain.linearRampToValueAtTime(0.0001, when + dur);
+    o.connect(g); g.connect(dest);
+    o.start(when); o.stop(when + dur + 0.02);
+  };
+
+  Snd.drum = function (kind, when) {
+    var c = this.ctx, g = c.createGain();
+    if (kind === 'k') {
+      var o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, when);
+      o.frequency.exponentialRampToValueAtTime(45, when + 0.09);
+      g.gain.setValueAtTime(0.2, when);
+      g.gain.exponentialRampToValueAtTime(0.001, when + 0.11);
+      o.connect(g); g.connect(this.bus);
+      o.start(when); o.stop(when + 0.13);
+      return;
+    }
+    var src = c.createBufferSource(), f = c.createBiquadFilter(), dur = kind === 's' ? 0.1 : 0.035;
+    src.buffer = this.noise;
+    f.type = kind === 's' ? 'bandpass' : 'highpass';
+    f.frequency.value = kind === 's' ? 1800 : 6500;
+    g.gain.setValueAtTime(kind === 's' ? 0.07 : 0.035, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    src.connect(f); f.connect(g); g.connect(this.bus);
+    src.start(when, Math.random() * 0.5, dur + 0.02);
+  };
+
+  Snd.playStep = function (tr, i, when) {
+    var e = tr.lead.map[i];
+    if (e) this.note(this.bus, 'p25', e.f, when, e.d * tr.sd * 0.92, 0.085);
+    e = tr.harm.map[i];
+    if (e) this.note(this.bus, 'p50', e.f, when, e.d * tr.sd * 0.85, 0.04);
+    e = tr.bass.map[i];
+    if (e) this.note(this.bus, 'tri', e.f, when, e.d * tr.sd * 0.95, 0.12);
+    var d = tr.drums.charAt(i);
+    if (d === 'k' || d === 's' || d === 'h') this.drum(d, when);
+  };
+
+  Snd.tick = function () {
+    var c = this.ctx, tr = this.tr;
+    if (!c || !tr) return;
+    while (this.next < c.currentTime + 0.15) {
+      this.playStep(tr, this.step, this.next);
+      this.next += tr.sd;
+      this.step++;
+      if (this.step >= tr.len) {
+        if (tr.loop) this.step = 0;
+        else { clearInterval(this.timer); this.timer = null; this.tr = null; return; }
+      }
+    }
+  };
+
+  Snd.fadeBus = function () {
+    var old = this.bus;
+    if (!old) return;
+    var now = this.ctx.currentTime;
+    try {
+      old.gain.cancelScheduledValues(now);
+      old.gain.setValueAtTime(old.gain.value, now);
+      old.gain.linearRampToValueAtTime(0, now + 0.08);
+    } catch (e) { /* ignore */ }
+    setTimeout(function () { try { old.disconnect(); } catch (e) { /* ignore */ } }, 250);
+    this.bus = null;
+  };
+
+  Snd.play = function (key) {
+    this.want = key;
+    if (!this.on || !this.ctx || this.cur === key) return;
+    this.cur = key;
+    clearInterval(this.timer);
+    this.fadeBus();
+    this.bus = this.ctx.createGain();
+    this.bus.connect(this.master);
+    this.tr = TRACKS[key];
+    this.step = 0;
+    this.next = this.ctx.currentTime + 0.08;
+    var me = this;
+    this.timer = setInterval(function () { me.tick(); }, 30);
+  };
+
+  Snd.halt = function () {
+    clearInterval(this.timer); this.timer = null; this.tr = null; this.cur = null;
+    if (this.ctx) this.fadeBus();
+  };
+
+  Snd.set = function (v) {
+    if (v && !this.init()) return;
+    this.on = v;
+    try { localStorage.setItem('roadToLawSound', v ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (v) { this.ctx.resume(); this.cur = null; this.play(this.want); sfx('blip'); }
+    else this.halt();
+    sndLabel();
+  };
+
+  var SFX = {
+    blip:    function (S0) { Snd.note(Snd.master, 'p50', 660, S0, 0.05, 0.09); },
+    correct: function (S0) { Snd.note(Snd.master, 'p50', 784, S0, 0.09, 0.1); Snd.note(Snd.master, 'p50', 1047, S0 + 0.09, 0.18, 0.1); },
+    wrong:   function (S0) { Snd.note(Snd.master, 'saw', 196, S0, 0.14, 0.06); Snd.note(Snd.master, 'saw', 147, S0 + 0.13, 0.28, 0.06); },
+    pass:    function (S0) { [523, 659, 784, 1047].forEach(function (f, i) { Snd.note(Snd.master, 'p25', f, S0 + i * 0.08, i === 3 ? 0.25 : 0.09, 0.09); }); },
+    fail:    function (S0) { [392, 330, 262].forEach(function (f, i) { Snd.note(Snd.master, 'p50', f, S0 + i * 0.13, i === 2 ? 0.3 : 0.12, 0.09); }); },
+    gavel:   function (S0) {
+      Snd.note(Snd.master, 'tri', 130, S0, 0.07, 0.25, 70);
+      var c = Snd.ctx, src = c.createBufferSource(), g = c.createGain();
+      src.buffer = Snd.noise; g.gain.setValueAtTime(0.12, S0); g.gain.exponentialRampToValueAtTime(0.001, S0 + 0.06);
+      src.connect(g); g.connect(Snd.master); src.start(S0, 0.2, 0.08);
+    },
+    stamp:   function (S0) { Snd.note(Snd.master, 'tri', 110, S0, 0.2, 0.3, 45); Snd.note(Snd.master, 'saw', 98, S0, 0.2, 0.04, 60); }
+  };
+
+  function sfx(name, delay) {
+    if (!Snd.on || !Snd.ctx || !SFX[name]) return;
+    try { SFX[name](Snd.ctx.currentTime + (delay || 0)); } catch (e) { /* ignore */ }
+  }
+
+  /* AUDIO END */
+  // Extra sounds: train whistle and a coin ping.
+  SFX.whistle = function (S0) {
+    Snd.note(Snd.master, 'p50', 392, S0, 0.5, 0.08, 370);
+    Snd.note(Snd.master, 'p50', 494, S0, 0.5, 0.06, 466);
+  };
+  SFX.coin = function (S0) {
+    Snd.note(Snd.master, 'p50', 988, S0, 0.07, 0.09);
+    Snd.note(Snd.master, 'p50', 1319, S0 + 0.07, 0.22, 0.09);
+  };
+
+  function trackFor(scene) { return scene === 'title' ? 'title' : scene === 'win' ? 'win' : 'office'; }
+
+  /* =========================================================
+     HELPERS + PROGRESS
+     ========================================================= */
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
+  function commas(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  function loadP() {
+    try {
+      var o = JSON.parse(localStorage.getItem('richardSalesProgress') || 'null');
+      if (o && o.stars && o.done && o.stars.length === 6 && o.done.length === 6) { PROG.stars = o.stars.map(Number); PROG.done = o.done.map(Boolean); }
+    } catch (e) { /* ignore */ }
+  }
+  function saveP() { try { localStorage.setItem('richardSalesProgress', JSON.stringify({ stars: PROG.stars, done: PROG.done })); } catch (e) { /* ignore */ } }
+  function totalStars() { return PROG.stars.reduce(function (a, b) { return a + b; }, 0); }
+  function starText(n) { var s = ''; for (var i = 0; i < 3; i++) s += i < n ? '\u2605' : '\u2606'; return s; }
+
+  var MISSIONS = [
+    { name: 'Meet the Railcars', blurb: 'Match each kind of cargo to the right railcar.' },
+    { name: 'Listen First',      blurb: 'Find out what each customer needs most.' },
+    { name: 'Fill the Train',    blurb: 'Figure out how many cars a shipment needs.' },
+    { name: 'Price It Right',    blurb: 'Quote fair prices and work out discounts.' },
+    { name: 'Right on Time',     blurb: 'Plan delivery days and keep your promises.' },
+    { name: 'Make the Deal',     blurb: 'Close three real deals from start to finish.' }
+  ];
+
+  var NOTES = [
+    'RAILCARS: Boxcar (boxed goods). Hopper (loose bulk like grain). Tank car (liquids). Flatcar (long, heavy things). Refrigerated car (cold food). Container car (containers that can also ride ships and trucks).',
+    'LISTEN FIRST: Ask open questions and listen. Find the customer\'s main need (cold, fast, careful, or low price), then match a solution.',
+    'FILL THE TRAIN: Cars needed = cargo amount divided by car size. Always round UP, because leftover cargo still needs a car.',
+    'PRICING: Total = cars x price per car. A discount takes a percent off the total. Compare offers by the price PER car.',
+    'TIME: Days = distance divided by speed. Only promise what you can deliver. If something changes, tell the customer right away.',
+    'MAKE THE DEAL: Listen, choose the right car, count the cars, figure the price, check the schedule, and keep your promises. Trust brings customers back.'
+  ];
+
+  function newMission(i) { M = { i: i, mistakes: 0, hint: 0 }; return M; }
+
+  function say(t) { return '<p><span class="who">RICHARD</span> ' + t + '</p>'; }
+  function hintLine(list) { return (M && M.hint > 0) ? '<span class="hint">HINT: ' + list[Math.min(M.hint, list.length) - 1] + '</span>' : ''; }
+  function hintBtn(redraw) { return { label: 'Ask Richard for a hint', run: function () { M.hint++; redraw(); } }; }
+
+  /* =========================================================
+     RENDERING
+     ========================================================= */
+  var textEl = $('text'), choicesEl = $('choices'), hudEl = $('hud'), frameEl = document.querySelector('.frame');
+  var curChoices = [];
+  function choose(c) { sfx('blip'); c.run(); }
+
+  function updateHud() {
+    if (!PROG.started) { hudEl.hidden = true; return; }
+    hudEl.hidden = false;
+    var done = PROG.done.filter(Boolean).length;
+    hudEl.innerHTML = '<span><span class="lbl">MISSIONS</span> <span class="hint">' + done + ' of 6</span></span>' +
+      '<span><span class="lbl">STARS</span> <span class="gold">' + totalStars() + ' of 18</span></span>' +
+      (M ? '<span class="good">' + MISSIONS[M.i].name.toUpperCase() + '</span>' : '');
+  }
+
+  function render(o) {
+    view = { name: o.scene || 'title', pose: o.pose || 'stand' };
+    draw();
+    updateHud();
+    Snd.play(trackFor(view.name));
+
+    var html = '';
+    if (o.big) html += '<h1 class="title">' + o.big + '</h1>';
+    if (o.title) html += '<h2>' + o.title + '</h2>';
+    (o.body || []).forEach(function (p) {
+      if (!p) return;
+      html += (typeof p === 'string' && p.replace(/^\s+/, '').charAt(0) === '<') ? p : '<p>' + p + '</p>';
+    });
+    textEl.innerHTML = html;
+
+    choicesEl.innerHTML = '';
+    curChoices = o.choices || [];
+    curChoices.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice';
+      b.innerHTML = '<span class="n">' + (i + 1) + '.</span> ' + c.label;
+      b.addEventListener('click', function () { choose(c); });
+      choicesEl.appendChild(b);
+    });
+
+    if (frameEl.getBoundingClientRect().top < 0) frameEl.scrollIntoView({ block: 'start' });
+    try { textEl.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'm' || e.key === 'M') { Snd.set(!Snd.on); return; }
+    var n = parseInt(e.key, 10), idx = -1;
+    if (n >= 1 && n <= 9) idx = n - 1;
+    else if ((e.key === 'Enter' || e.key === ' ') && curChoices.length === 1 && document.activeElement.tagName !== 'BUTTON') idx = 0;
+    if (idx >= 0 && curChoices[idx]) { e.preventDefault(); choose(curChoices[idx]); }
+  });
+
+  /* ---------- reusable screens ---------- */
+  function info(o) {
+    render({ scene: o.scene, pose: o.pose, title: o.title, body: o.body,
+             choices: [{ label: o.btn || 'Continue', run: o.next }] });
+  }
+
+  // One multiple-choice question. opts: [{t, ok}]; a wrong answer counts as a mistake.
+  function askOne(cfg, next) {
+    var opts = shuffle(cfg.opts.slice());
+    render({ scene: cfg.scene, pose: 'stand', title: cfg.title,
+      body: [cfg.lead ? say(cfg.lead) : '', '<p class="q">' + cfg.q + '</p>'],
+      choices: opts.map(function (o) {
+        return { label: o.t, run: function () {
+          if (o.ok) { sfx('correct', 0.08); render({ scene: cfg.scene, pose: 'cheer', title: cfg.title, body: ['<p class="good">CORRECT!</p>', say(cfg.right)], choices: [{ label: 'Continue', run: next }] }); }
+          else { M.mistakes++; sfx('wrong', 0.08); render({ scene: cfg.scene, pose: 'stand', title: cfg.title, body: ['<p class="bad">NOT QUITE.</p>', say(cfg.wrong)], choices: [{ label: 'Continue', run: next }] }); }
+        } };
+      }) });
+  }
+
+  // qs: [{ q, ok, bad:[...], right, wrong }]
+  function quizSeq(scene, title, qs, next) {
+    var k = 0;
+    (function step() {
+      if (k >= qs.length) return next();
+      var q = qs[k++];
+      askOne({ scene: scene, title: title + ' (' + k + ' of ' + qs.length + ')', lead: 'Quick check! Pick the best answer.', q: q.q,
+               opts: [{ t: q.ok, ok: true }].concat(q.bad.map(function (b) { return { t: b, ok: false }; })), right: q.right, wrong: q.wrong }, step);
+    })();
+  }
+
+  function finishMission() {
+    var i = M.i, m = M.mistakes, st = m <= 1 ? 3 : (m <= 3 ? 2 : 1);
+    PROG.stars[i] = Math.max(PROG.stars[i], st); PROG.done[i] = true; saveP();
+    sfx('pass');
+    render({ scene: 'win', title: 'MISSION COMPLETE!',
+      body: [say(st === 3 ? 'Fantastic work! You would make a great sales rep.' : st === 2 ? 'Nice job! Come back any time to try for three stars.' : 'You finished! Try again later for more stars. Every sales rep keeps practicing.'),
+             '<p class="gold">STARS: ' + starText(st) + '</p>',
+             '<p class="board">SALES NOTEBOOK\n' + NOTES[i] + '</p>'],
+      choices: [{ label: 'Back to the office', run: hub }] });
+  }
+
+  /* =========================================================
+     MISSION 1: MEET THE RAILCARS
+     ========================================================= */
+  var CARS = ['Boxcar', 'Hopper car', 'Tank car', 'Flatcar', 'Refrigerated car', 'Container car'];
+  var CARGO = [
+    { t: 'Corn from a farm, poured in loose by the ton', car: 1, icon: 'grain', why: 'A hopper car carries loose bulk goods like corn, sand, and gravel. It has hatches on top and chutes underneath.' },
+    { t: 'Orange juice from a juice factory', car: 2, icon: 'liquid', why: 'A tank car carries liquids like juice, syrup, and fuel.' },
+    { t: 'Ice cream that has to stay frozen', car: 4, icon: 'cold', why: 'A refrigerated car (a "reefer") keeps food cold so it does not spoil.' },
+    { t: 'Long wooden boards for building houses', car: 3, icon: 'lumber', why: 'A flatcar has no walls or roof, so it can carry long, heavy things like lumber and steel.' },
+    { t: 'Cartons of paper towels', car: 0, icon: 'boxes', why: 'A boxcar is a closed box on wheels. It keeps boxed goods dry and safe.' },
+    { t: 'Shipping containers full of sneakers, just off a ship at the port', car: 5, icon: 'cont', why: 'A container car carries standard shipping containers that can also ride on ships and trucks. That is called intermodal shipping.' }
+  ];
+
+  function m1() {
+    newMission(0);
+    info({ scene: 'cars', pose: 'stand', title: 'MISSION 1: MEET THE RAILCARS',
+      body: [say('Welcome to the railroad! I am Richard. I sell space on freight trains, so businesses can ship their products. First, let us meet the railcars. Each one is built for a different kind of cargo.'),
+             '<p class="board">1 BOXCAR: boxed goods.\n2 HOPPER: loose bulk, like grain.\n3 TANK CAR: liquids.\n4 FLATCAR: long, heavy things.\n5 REFRIGERATED: food that must stay cold.\n6 CONTAINER CAR: boxes that ride trains, trucks, and ships.</p>'],
+      next: function () { M.items = shuffle(CARGO.slice()); M.ci = 0; M.hint = 0; m1Pick(); } });
+  }
+  function m1Pick() {
+    var it = M.items[M.ci];
+    M.icon = it.icon;
+    var ch = CARS.map(function (c, i) {
+      return { label: '<b>' + (i + 1) + '</b> ' + c, run: function () {
+        var ok = i === it.car;
+        if (ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        render({ scene: 'cars', pose: ok ? 'cheer' : 'stand', title: ok ? 'CORRECT!' : 'NOT QUITE',
+          body: [say((ok ? '' : 'The best car is the <b class="gold">' + CARS[it.car].toLowerCase() + '</b>. ') + it.why)],
+          choices: [{ label: 'Continue', run: function () { M.ci++; M.hint = 0; if (M.ci >= M.items.length) m1Quiz(); else m1Pick(); } }] });
+      } };
+    });
+    ch.push(hintBtn(m1Pick));
+    render({ scene: 'cars', pose: 'stand', title: 'MATCH THE CARGO (' + (M.ci + 1) + ' OF ' + M.items.length + ')',
+      body: [say('A customer wants to ship this cargo, shown in the box on the screen:'), '<p class="q">' + it.t + '</p>',
+             hintLine(['Think about what the cargo is made of. Is it loose, a liquid, long, cold, or boxed?', 'Look at the six car pictures. Which one is built to hold this?', 'The answer is the ' + CARS[it.car].toLowerCase() + '.'])],
+      choices: ch });
+  }
+  function m1Quiz() {
+    M.icon = null;
+    quizSeq('cars', 'RAILCAR CHECK', [
+      { q: 'Which railcar is best for syrup, a liquid?', ok: 'Tank car', bad: ['Flatcar', 'Hopper car', 'Boxcar'],
+        right: 'Yes! Tank cars are built for liquids.', wrong: 'A tank car. Tank cars are sealed tubes built to carry liquids safely.' },
+      { q: 'What does "intermodal" mean?', ok: 'Cargo that can travel by train, truck, and ship', bad: ['A very fast train', 'A train with two engines', 'Cargo that is extra heavy'],
+        right: 'Correct! Intermodal containers move between trains, trucks, and ships without unpacking.', wrong: 'Intermodal means cargo that can travel by train, truck, and ship, usually in standard containers.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 2: LISTEN FIRST
+     ========================================================= */
+  var NEEDS = ['Keeping the cargo cold', 'Getting there fast and on time', 'Careful handling so nothing breaks', 'A low price'];
+  var CUSTS = [
+    { who: 'A strawberry grower', quote: 'My strawberries go bad in just a few days! They have to stay nice and cool the whole trip.', need: 0, why: 'The strawberries spoil if they get warm, so a refrigerated car is the answer.' },
+    { who: 'A toy maker', quote: 'The big holiday sale starts Friday. If my toys show up late, the stores will cancel the whole order!', need: 1, why: 'The deadline matters most. Late toys mean a lost sale.' },
+    { who: 'A vase maker', quote: 'My glass vases are very fragile. Last time, half of them cracked on the way!', need: 2, why: 'Fragile cargo needs careful handling. Price is not the biggest worry here.' },
+    { who: 'A school supply company', quote: 'We ship every single week, and we are watching our budget very closely.', need: 3, why: 'A company that ships all the time and watches its budget cares most about price.' }
+  ];
+
+  function m2() {
+    newMission(1);
+    info({ scene: 'listen', pose: 'clip', title: 'MISSION 2: LISTEN FIRST',
+      body: [say('The best sales reps do not start by talking. They start by <b class="gold">listening</b>. If I understand what a customer needs, I can offer the right solution.'),
+             '<p class="board">Ask OPEN questions, like "What matters most to you?"\nListen for the main need: COLD, FAST, CAREFUL, or LOW PRICE.\nThen match a solution.</p>'],
+      next: function () { M.order = shuffle([0, 1, 2, 3]); M.k = 0; M.hint = 0; m2Hear(); } });
+  }
+  function m2Hear() {
+    var idx = M.order[M.k], c = CUSTS[idx];
+    M.cust = idx;
+    var ch = NEEDS.map(function (n, i) {
+      return { label: n, run: function () {
+        var ok = i === c.need;
+        if (ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        render({ scene: 'listen', pose: ok ? 'cheer' : 'stand', title: ok ? 'GOOD LISTENING!' : 'NOT QUITE',
+          body: [say((ok ? '' : 'This customer needs <b class="gold">' + NEEDS[c.need].toLowerCase() + '</b> most. ') + c.why)],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; if (M.k >= 4) m2Quiz(); else m2Hear(); } }] });
+      } };
+    });
+    ch.push(hintBtn(m2Hear));
+    render({ scene: 'listen', pose: 'clip', title: 'WHAT DOES THE CUSTOMER NEED? (' + (M.k + 1) + ' OF 4)',
+      body: [say(c.who + ' walks into your office and says:'), '<p class="q">"' + c.quote + '"</p>', say('What does this customer need <b class="gold">most</b>?'),
+             hintLine(['Look for the biggest worry in what the customer said.', 'Pay attention to words like "spoil," "late," "fragile," or "budget."', 'The answer is: ' + NEEDS[c.need].toLowerCase() + '.'])],
+      choices: ch });
+  }
+  function m2Quiz() {
+    quizSeq('listen', 'LISTENING CHECK', [
+      { q: 'Which question is the best way to learn what a customer needs?', ok: 'What is most important to you about shipping this?', bad: ['Do you want to buy something today?', 'Do not you think trains are the best?', 'How much money do you have?'],
+        right: 'Yes! An open question gets the customer talking, so you can listen.', wrong: 'The best one is "What is most important to you about shipping this?" It is open, polite, and gets the customer talking.' },
+      { q: 'What should a sales rep do FIRST in a sale?', ok: 'Listen to the customer', bad: ['Name the price', 'Talk about how great the company is', 'Pick the railcar'],
+        right: 'Correct! Listening first helps you offer the right solution.', wrong: 'Listen first. You cannot match a solution until you know what the customer needs.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 3: FILL THE TRAIN
+     ========================================================= */
+  var CASES3 = [
+    { text: 'A farm needs to ship <b class="gold">450 tons</b> of corn. One hopper car holds <b class="gold">100 tons</b>.', amount: 450, cap: 100, col: 'B' },
+    { text: 'A juice company needs to ship <b class="gold">36,000 gallons</b>. One tank car holds <b class="gold">12,000 gallons</b>.', amount: 36000, cap: 12000, col: 'l' },
+    { text: 'A toy company has <b class="gold">2,500 boxes</b>. One boxcar holds <b class="gold">800 boxes</b>.', amount: 2500, cap: 800, col: 'n' },
+    { text: 'A shoe company has <b class="gold">14 containers</b>. One container car carries <b class="gold">2 containers</b>.', amount: 14, cap: 2, col: 'R' }
+  ];
+
+  function m3() {
+    newMission(2);
+    info({ scene: 'fill', pose: 'stand', title: 'MISSION 3: FILL THE TRAIN',
+      body: [say('A customer tells me how much they want to ship. My job is to figure out <b class="gold">how many cars</b> they need. Too few, and cargo gets left behind. Too many, and they pay for empty space.'),
+             '<p class="board">CARS NEEDED = cargo amount / car size\nRound UP to the next whole car!</p>'],
+      next: function () { M.k = 0; M.cars = 1; M.cs = CASES3[0]; M.hint = 0; m3Play(); } });
+  }
+  function m3Play() {
+    var c = CASES3[M.k], need = Math.ceil(c.amount / c.cap);
+    M.cs = c;
+    render({ scene: 'fill', pose: 'stand', title: 'FILL THE TRAIN (' + (M.k + 1) + ' OF 4)',
+      body: [say(c.text + ' How many cars will you send?'),
+             '<p class="board">YOUR TRAIN: ' + M.cars + ' CAR' + (M.cars === 1 ? '' : 'S') + '\nThe bars on the screen: <span class="gold">yellow</span> = cargo, <span class="good">green</span> = space on your cars.</p>',
+             hintLine(['Divide the cargo amount by what one car holds.', 'If the answer has leftovers, you need one more car.', 'The answer is ' + need + ' cars.'])],
+      choices: [{ label: '+ Add a car', run: function () { M.cars = clamp(M.cars + 1, 1, 9); m3Play(); } },
+                { label: '- Remove a car', run: function () { M.cars = clamp(M.cars - 1, 1, 9); m3Play(); } },
+                { label: '<span class="gold">Check my train</span>', run: m3Check }, hintBtn(m3Play)] });
+  }
+  function m3Check() {
+    var c = CASES3[M.k], need = Math.ceil(c.amount / c.cap), have = M.cars * c.cap;
+    if (M.cars < need) {
+      M.mistakes++; sfx('wrong');
+      render({ scene: 'fill', pose: 'stand', title: 'NOT ENOUGH ROOM', body: [say('Your ' + M.cars + ' car' + (M.cars === 1 ? '' : 's') + ' carry ' + commas(have) + ', but the customer has ' + commas(c.amount) + '. That leaves ' + commas(c.amount - have) + ' behind. Add a car!')], choices: [{ label: 'Try again', run: m3Play }] });
+    } else if (M.cars > need) {
+      M.mistakes++; sfx('wrong');
+      render({ scene: 'fill', pose: 'stand', title: 'TOO MANY CARS', body: [say('You only need ' + need + ' cars. Extra cars would ride empty, and the customer would pay for space they do not use. Remove a car!')], choices: [{ label: 'Try again', run: m3Play }] });
+    } else {
+      sfx('correct');
+      var exact = c.amount % c.cap === 0, last = M.k === CASES3.length - 1;
+      render({ scene: 'fill', pose: 'cheer', title: 'PERFECT FIT!',
+        body: ['<p class="good">CORRECT!</p>', say(commas(c.amount) + ' / ' + commas(c.cap) + ' = ' + (c.amount / c.cap).toFixed(exact ? 0 : 2).replace(/\.?0+$/, '') + (exact ? '. That divides evenly, so ' + need + ' cars fit exactly.' : '. You cannot send part of a car, so round UP to ' + need + ' cars.'))],
+        choices: [{ label: 'Continue', run: function () { if (last) m3Quiz(); else { M.k++; M.cars = 1; M.hint = 0; m3Play(); } } }] });
+    }
+  }
+  function m3Quiz() {
+    quizSeq('fill', 'TRAIN CHECK', [
+      { q: 'A tank car holds 10,000 gallons. A customer has 25,000 gallons. How many cars do they need?', ok: '3 cars', bad: ['2 cars', '4 cars', '5 cars'],
+        right: 'Yes! 25,000 / 10,000 = 2.5, and we round UP to 3 cars.', wrong: '3 cars. 25,000 / 10,000 = 2.5, and we always round UP, so the answer is 3.' },
+      { q: 'Why do we round UP when we count cars?', ok: 'Leftover cargo still needs a car to ride in', bad: ['Bigger numbers look better', 'Cars cost less that way', 'It is just a rule with no reason'],
+        right: 'Correct! There is no such thing as half a car.', wrong: 'Because leftover cargo still needs a car to ride in. You cannot send half a car.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 4: PRICE IT RIGHT
+     ========================================================= */
+  var TASKS4 = [
+    { q: 'A customer needs 5 hopper cars. Each car costs 2,000 Rail Bucks. What is the total?', cars: 5, price: 2000, ok: '10,000', bad: ['7,000', '2,500', '12,000'], why: '5 x 2,000 = 10,000 Rail Bucks.', hints: ['Total = cars x price per car.', 'Multiply 5 by 2,000.', 'The answer is 10,000.'] },
+    { q: 'A customer orders 12 cars at 1,500 each. That is 18,000. Orders of 10 or more cars get 10% off. What does the customer pay?', cars: 12, price: 1500, ok: '16,200', bad: ['16,800', '18,000', '19,800'], why: '10% of 18,000 is 1,800. Then 18,000 - 1,800 = 16,200 Rail Bucks.', hints: ['Find 10% of 18,000 first. Move the decimal one place.', 'Subtract that discount from 18,000.', 'The answer is 16,200.'] },
+    { q: 'A customer has 9,000 Rail Bucks. Each car costs 1,800. What is the most cars they can afford?', cars: 5, price: 1800, ok: '5', bad: ['4', '6', '9'], why: '9,000 / 1,800 = 5 cars.', hints: ['Divide the budget by the price of one car.', 'How many times does 1,800 fit into 9,000?', 'The answer is 5.'] },
+    { q: 'Offer A: 4 cars for 7,600. Offer B: 5 cars for 9,000. Which offer has the lower price PER car?', cars: 5, price: 1800, ok: 'Offer B', bad: ['Offer A', 'They are the same', 'It is impossible to tell'], why: 'Offer A: 7,600 / 4 = 1,900 per car. Offer B: 9,000 / 5 = 1,800 per car. Offer B is cheaper per car.', hints: ['Divide each total by its number of cars.', 'Compare the two answers. Lower is cheaper.', 'The answer is Offer B.'] }
+  ];
+
+  function m4() {
+    newMission(3);
+    info({ scene: 'price', pose: 'stand', title: 'MISSION 4: PRICE IT RIGHT',
+      body: [say('Once I know the right cars, I give the customer a <b class="gold">quote</b>, which is the price. In this game we use play money called Rail Bucks.'),
+             '<p class="board">TOTAL = cars x price per car\nDISCOUNT = take a percent off the total\nCompare offers by the price PER car.</p>'],
+      next: function () { M.k = 0; M.hint = 0; m4Ask(); } });
+  }
+  function m4Ask() {
+    var t4 = TASKS4[M.k];
+    M.tcars = t4.cars; M.tprice = t4.price;
+    if (!M.opts4 || M.opts4k !== M.k) { M.opts4 = shuffle([{ t: t4.ok, ok: true }].concat(t4.bad.map(function (b) { return { t: b, ok: false }; }))); M.opts4k = M.k; }
+    var ch = M.opts4.map(function (o) {
+      return { label: o.t, run: function () {
+        if (o.ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        if (o.ok) sfx('coin', 0.15);
+        render({ scene: 'price', pose: o.ok ? 'cheer' : 'stand', title: o.ok ? 'CORRECT!' : 'NOT QUITE',
+          body: [say((o.ok ? '' : 'The answer is ' + t4.ok + '. ') + t4.why)],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; M.opts4 = null; if (M.k >= TASKS4.length) m4Quiz(); else m4Ask(); } }] });
+      } };
+    });
+    ch.push(hintBtn(m4Ask));
+    render({ scene: 'price', pose: 'stand', title: 'QUOTE THE PRICE (' + (M.k + 1) + ' OF ' + TASKS4.length + ')',
+      body: [say('Let us do the math.'), '<p class="q">' + t4.q + '</p>', hintLine(t4.hints)], choices: ch });
+  }
+  function m4Quiz() {
+    quizSeq('price', 'PRICE CHECK', [
+      { q: 'What is 10% of 4,000?', ok: '400', bad: ['40', '1,000', '4,000'], right: 'Yes! 10% is one tenth, so 4,000 / 10 = 400.', wrong: '400. 10% means one tenth, and 4,000 / 10 = 400.' },
+      { q: 'Which is a fair way to offer a discount?', ok: 'Give it to every customer who orders enough cars', bad: ['Only give it to customers you like', 'Raise the price first, then lower it', 'Never tell customers about it'],
+        right: 'Correct! Fair rules that apply to everyone build trust.', wrong: 'Give it to every customer who meets the rule. Fair, clear prices build trust, and trust brings customers back.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 5: RIGHT ON TIME
+     ========================================================= */
+  var ROUTES = [['Jacksonville to Atlanta', 350, 1], ['Atlanta to Chicago', 700, 2], ['Jacksonville to Chicago', 1050, 3]];
+
+  function m5() {
+    newMission(4);
+    info({ scene: 'time', pose: 'stand', title: 'MISSION 5: RIGHT ON TIME',
+      body: [say('Customers care about <b class="gold">when</b> their cargo arrives. In this game, our trains travel about <b class="gold">350 miles a day</b>. (The distances are rounded.)'),
+             '<p class="board">DAYS = distance / speed\nPromise only what you can deliver!</p>'],
+      next: function () { M.k = 0; M.days = null; M.hint = 0; m5Route(); } });
+  }
+  function m5Route() {
+    var r = ROUTES[M.k];
+    var ch = [1, 2, 3, 4].map(function (d) {
+      return { label: d + (d === 1 ? ' day' : ' days'), run: function () {
+        var ok = d === r[2]; M.days = r[2];
+        if (ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        render({ scene: 'time', pose: ok ? 'cheer' : 'stand', title: ok ? 'CORRECT!' : 'NOT QUITE',
+          body: [say(r[0] + ' is about ' + commas(r[1]) + ' miles. ' + commas(r[1]) + ' / 350 = ' + (r[1] / 350) + '. So the trip takes <b class="gold">' + r[2] + (r[2] === 1 ? ' day' : ' days') + '</b>.')],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; M.days = null; if (M.k >= ROUTES.length) m5Promise(); else m5Route(); } }] });
+      } };
+    });
+    ch.push(hintBtn(m5Route));
+    render({ scene: 'time', pose: 'stand', title: 'HOW LONG WILL IT TAKE? (' + (M.k + 1) + ' OF ' + ROUTES.length + ')',
+      body: [say('Route: <b class="gold">' + r[0] + '</b>, about ' + commas(r[1]) + ' miles. The train goes 350 miles a day. How many days will it take?'),
+             hintLine(['Divide the distance by 350.', 'If it does not divide evenly, round up to the next day.', 'The answer is ' + r[2] + (r[2] === 1 ? ' day.' : ' days.')])],
+      choices: ch });
+  }
+  function m5Promise() {
+    M.days = null;
+    quizSeq('time', 'KEEP YOUR PROMISES', [
+      { q: 'A customer needs toys in Chicago within 4 days. The trip from Jacksonville takes 3 days. What do you say?', ok: 'Yes, it will arrive in 3 days', bad: ['Maybe, we will see', 'It will take 1 day', 'No, that is impossible'],
+        right: 'Right! You can keep that promise, so say it clearly.', wrong: 'Say "Yes, it will arrive in 3 days." The trip fits the deadline, so be clear and confident.' },
+      { q: 'A customer needs a delivery to Chicago in 2 days, but the trip takes 3. What should you do?', ok: 'Tell the truth and offer the 3-day train or another option', bad: ['Promise 2 days to win the sale', 'Say nothing and hope they do not notice', 'Blame the train'],
+        right: 'Correct! Honesty wins trust. Offer what you CAN do.', wrong: 'Tell the truth and offer the 3-day train or another option. A false promise would cost you the customer\'s trust.' },
+      { q: 'A snowstorm delays the train by 1 day. What should you do?', ok: 'Call the customer right away with the new arrival day', bad: ['Wait and hope they do not notice', 'Tell them it is still on time', 'Hide until it arrives'],
+        right: 'Yes! Customers can plan around bad news if they hear it early.', wrong: 'Call the customer right away with the new day. Customers can plan around bad news, but not around surprises.' }
+    ], finishMission);
+  }
+
+  /* =========================================================
+     MISSION 6: MAKE THE DEAL
+     ========================================================= */
+  var DEALS = [
+    { who: 'Sunny Orchard', bucks: 3000,
+      intro: 'Sunny Orchard needs to ship <b class="gold">24,000 gallons of orange juice</b> from Jacksonville to Atlanta (350 miles). It has to arrive <b class="gold">by tomorrow</b>. A tank car holds 12,000 gallons and costs 1,500 Rail Bucks. Our trains go 350 miles a day.',
+      steps: [
+        { q: 'Which railcar should you choose?', ok: 'Tank car', bad: ['Boxcar', 'Flatcar', 'Hopper car'], right: 'Yes, juice is a liquid, so a tank car is perfect.', wrong: 'A tank car. Juice is a liquid.' },
+        { q: 'How many cars do they need?', ok: '2 cars', bad: ['1 car', '3 cars', '4 cars'], right: '24,000 / 12,000 = 2 cars. A perfect fit.', wrong: '2 cars. 24,000 / 12,000 = 2.' },
+        { q: 'What is the total price?', ok: '3,000 Rail Bucks', bad: ['1,500 Rail Bucks', '4,500 Rail Bucks', '6,000 Rail Bucks'], right: '2 cars x 1,500 = 3,000 Rail Bucks.', wrong: '3,000 Rail Bucks. 2 cars x 1,500 each.' },
+        { q: 'What do you promise about delivery?', ok: 'It will arrive tomorrow, in 1 day', bad: ['It will arrive in 3 days', 'It will arrive in 5 minutes', 'I cannot say'], right: '350 miles at 350 miles a day is 1 day, so you can keep that promise.', wrong: 'It will arrive in 1 day. 350 miles at 350 miles a day is 1 day.' }
+      ] },
+    { who: 'Frosty Creamery', bucks: 6000,
+      intro: 'Frosty Creamery has <b class="gold">3 cars</b> of ice cream to send from Jacksonville to Chicago (1,050 miles). A refrigerated car costs 2,000 Rail Bucks. The owner says, "I need it there in <b class="gold">2 days</b>!"',
+      steps: [
+        { q: 'Which railcar should you choose?', ok: 'Refrigerated car', bad: ['Boxcar', 'Flatcar', 'Hopper car'], right: 'Right, ice cream has to stay frozen.', wrong: 'A refrigerated car. Ice cream must stay frozen.' },
+        { q: 'What is the total price for 3 cars?', ok: '6,000 Rail Bucks', bad: ['2,000 Rail Bucks', '5,000 Rail Bucks', '8,000 Rail Bucks'], right: '3 x 2,000 = 6,000 Rail Bucks.', wrong: '6,000 Rail Bucks. 3 x 2,000.' },
+        { q: 'How many days will the trip really take?', ok: '3 days', bad: ['1 day', '2 days', '5 days'], right: '1,050 / 350 = 3 days.', wrong: '3 days. 1,050 / 350 = 3.' },
+        { q: 'The owner wants it in 2 days. What do you say?', ok: 'The trip takes 3 days. I can offer the 3-day train.', bad: ['Sure, 2 days!', 'Maybe 2 days if we are lucky', 'Do not worry about it'], right: 'Honest and helpful. The customer can plan around 3 days.', wrong: 'Tell the truth: the trip takes 3 days, and offer that train. A false promise would break trust.' }
+      ] },
+    { who: 'Big Box Toys', bucks: 5400,
+      intro: 'Big Box Toys has <b class="gold">2,400 boxes</b> of toys to ship from Atlanta to Chicago (700 miles). A boxcar holds 800 boxes and costs 1,800 Rail Bucks. They need delivery in <b class="gold">2 days</b>.',
+      steps: [
+        { q: 'How many boxcars do they need?', ok: '3 cars', bad: ['2 cars', '4 cars', '5 cars'], right: '2,400 / 800 = 3 cars.', wrong: '3 cars. 2,400 / 800 = 3.' },
+        { q: 'What is the total price?', ok: '5,400 Rail Bucks', bad: ['3,600 Rail Bucks', '7,200 Rail Bucks', '1,800 Rail Bucks'], right: '3 x 1,800 = 5,400 Rail Bucks.', wrong: '5,400 Rail Bucks. 3 x 1,800.' },
+        { q: 'What do you promise about delivery?', ok: 'Yes, it will take 2 days. I can promise that.', bad: ['It will take 5 days', 'It will take 1 day', 'We cannot ship toys'], right: '700 / 350 = 2 days, so you can keep that promise.', wrong: 'Yes, 2 days. 700 miles at 350 miles a day is 2 days.' }
+      ] }
+  ];
+
+  function m6() {
+    newMission(5);
+    M.bucks = 0;
+    info({ scene: 'deal', pose: 'clip', title: 'MISSION 6: MAKE THE DEAL',
+      body: [say('Time to put it all together! Three customers are waiting. For each one, you will pick the right railcar, count the cars, work out the price, and make a promise you can keep.'),
+             '<p class="board">LISTEN, then MATCH the car,\nCOUNT the cars, QUOTE the price,\nCHECK the schedule, KEEP your promise.</p>'],
+      next: function () { M.d = 0; m6Deal(); } });
+  }
+  function m6Deal() {
+    var dl = DEALS[M.d];
+    info({ scene: 'deal', pose: 'clip', title: 'DEAL ' + (M.d + 1) + ' OF 3: ' + dl.who.toUpperCase(), body: [say(dl.intro)], btn: 'Start the deal', next: function () { M.s = 0; m6Step(); } });
+  }
+  function m6Step() {
+    var dl = DEALS[M.d];
+    if (M.s >= dl.steps.length) {
+      M.bucks += dl.bucks; sfx('coin'); sfx('whistle', 0.3);
+      var last = M.d === DEALS.length - 1;
+      render({ scene: 'deal', pose: 'cheer', title: 'DEAL CLOSED!',
+        body: ['<p class="good">' + dl.who + ' signs the order!</p>', say('That is ' + commas(dl.bucks) + ' Rail Bucks of business, and a happy customer who will come back.'), '<p class="board">TOTAL SO FAR: ' + commas(M.bucks) + ' RAIL BUCKS</p>'],
+        choices: [{ label: last ? 'Finish the mission' : 'Next customer', run: function () { if (last) finishMission(); else { M.d++; m6Deal(); } } }] });
+      return;
+    }
+    var st = dl.steps[M.s];
+    askOne({ scene: 'deal', title: 'DEAL ' + (M.d + 1) + ': ' + dl.who.toUpperCase() + ' (STEP ' + (M.s + 1) + ' OF ' + dl.steps.length + ')',
+             lead: '', q: st.q, opts: [{ t: st.ok, ok: true }].concat(st.bad.map(function (b) { return { t: b, ok: false }; })), right: st.right, wrong: st.wrong },
+           function () { M.s++; m6Step(); });
+  }
+
+  /* =========================================================
+     HUB, NOTEBOOK, GRADUATION, TITLE
+     ========================================================= */
+  var RUNNERS = [m1, m2, m3, m4, m5, m6];
+
+  function hub() {
+    M = null; PROG.started = true;
+    var all = PROG.done.every(Boolean), any = PROG.done.some(Boolean);
+    var ch = MISSIONS.map(function (m, i) {
+      return { label: '<b>' + (i + 1) + '. ' + m.name + '</b> - ' + m.blurb + (PROG.done[i] ? ' <span class="gold">' + starText(PROG.stars[i]) + '</span>' : ''), run: RUNNERS[i] };
+    });
+    ch.push({ label: 'Open my sales notebook', run: notebook });
+    if (all) ch.push({ label: '<span class="gold">Graduation day!</span>', run: finale });
+    render({ scene: 'hub', pose: 'stand', title: 'THE RAIL OFFICE',
+      body: [say(any ? 'Welcome back to the office! Pick a mission. Any order works, but the order shown is the best way to learn.' : 'Welcome to the rail office! I am Richard. Pick a mission to start. Mission 1 is a great place to begin.'),
+             '<span class="hint">Finish all 6 missions to graduate. Stars: 3 for few mistakes, so take your time.</span>'],
+      choices: ch });
+  }
+
+  function notebook() {
+    var any = PROG.done.some(Boolean);
+    render({ scene: 'hub', pose: 'stand', title: 'SALES NOTEBOOK',
+      body: [say(any ? 'Here is everything you have learned so far:' : 'Your notebook is empty. Finish a mission and I will write down what you learned.'),
+             any ? '<p class="board">' + NOTES.filter(function (n, i) { return PROG.done[i]; }).join('\n\n') + '</p>' : ''],
+      choices: [{ label: 'Back to the office', run: hub }, { label: 'Erase my progress', run: erase }] });
+  }
+  function erase() {
+    render({ scene: 'hub', pose: 'stand', title: 'ERASE PROGRESS?',
+      body: [say('This clears all your stars and your notebook. Are you sure?')],
+      choices: [{ label: 'Keep my progress', run: notebook },
+                { label: 'Yes, erase everything', run: function () { PROG.stars = [0, 0, 0, 0, 0, 0]; PROG.done = [false, false, false, false, false, false]; saveP(); hub(); } }] });
+  }
+
+  function finale() {
+    var tot = totalStars(), rank = tot >= 16 ? 'SALES CHAMPION' : tot >= 12 ? 'ACCOUNT MANAGER' : 'JUNIOR SALES REP';
+    sfx('pass'); sfx('whistle', 0.4);
+    render({ scene: 'win', title: 'GRADUATION DAY!',
+      body: [say('You finished every mission! You listened, matched, counted, priced, and kept your promises, just like a real sales rep does.'),
+             '<p class="board">CERTIFICATE OF SALES SKILL\nMISSIONS: 6 OF 6\nSTARS: ' + tot + ' OF 18\nRANK: <span class="gold">' + rank + '</span></p>',
+             '<span class="hint">Want more stars? Go back and retry any mission for a better score.</span>'],
+      choices: [{ label: 'Back to the office', run: hub }] });
+  }
+
+  function title() {
+    render({ scene: 'title', big: 'RICHARD\'S RAIL SALES',
+      body: ['<p class="hint" style="margin-top:0">All aboard for a career in sales!</p>',
+             'Meet Richard, who works at the railroad company CSX selling space on freight trains. Help him match customers with the right railcars, do the math, and make fair deals. Richard explains everything, and hints are always one press away.'],
+      choices: [
+        { label: 'Enter the office', run: hub },
+        { label: 'How to play', run: function () {
+            render({ scene: 'hub', pose: 'stand', title: 'HOW TO PLAY',
+              body: [say('It is easy! Here is how my office works:'),
+                     '<p class="board">Click a choice, or press its number key.\nStuck? Choose "Ask Richard for a hint" as many times as you like.\nEarn up to 3 stars per mission. Fewer mistakes means more stars.\nYour progress saves on this computer.\nPress M to turn sound on or off.</p>'],
+              choices: [{ label: 'Back', run: title }] });
+          } }
+      ] });
+  }
+
+  /* ---------- sound button ---------- */
+  var sndBtn = $('snd');
+  function sndLabel() {
+    sndBtn.textContent = 'Sound: ' + (Snd.on ? 'On' : 'Off');
+    sndBtn.setAttribute('aria-pressed', Snd.on ? 'true' : 'false');
+  }
+  try { Snd.on = localStorage.getItem('roadToLawSound') === '1'; } catch (e) { /* ignore */ }
+  sndLabel();
+  sndBtn.addEventListener('click', function () { Snd.set(!Snd.on); });
+  function unlockAudio() {
+    if (Snd.on && !Snd.ctx && Snd.init()) { Snd.ctx.resume(); Snd.cur = null; Snd.play(Snd.want); }
+  }
+  document.addEventListener('pointerdown', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
+  document.addEventListener('visibilitychange', function () {
+    if (!Snd.ctx) return;
+    if (document.hidden) Snd.ctx.suspend(); else if (Snd.on) Snd.ctx.resume();
+  });
+
+  loadP();
+  title();
+})();
+</script>
+</body>
+</html>
