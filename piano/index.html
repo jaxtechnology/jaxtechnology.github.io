@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Miss Sarah's Piano Studio - Music Skills</title>
+<style>
+  :root {
+    --k:#000; --b:#0000aa; --g:#00aa00; --n:#aa5500; --l:#aaaaaa; --d:#555555;
+    --B:#5555ff; --G:#55ff55; --C:#55ffff; --R:#ff5555; --M:#ff55ff; --Y:#ffff55; --W:#ffffff;
+    --mono: "Courier New", Courier, "Lucida Console", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #000;
+    color: var(--W);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.4;
+  }
+  a { color: var(--C); }
+  a:hover { color: var(--Y); }
+  :focus-visible { outline: 3px solid var(--Y); outline-offset: 2px; }
+
+  .wrap { max-width: 960px; margin: 0 auto; padding: 14px 14px 40px; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 0 0 12px; font-size: 16px; }
+  .snd {
+    font: inherit; font-size: 16px; color: var(--Y); background: #000; cursor: pointer;
+    border: 2px solid var(--W); padding: 6px 14px; min-height: 44px;
+  }
+  .snd:hover, .snd:focus-visible { background: var(--W); color: #000; outline: none; }
+  .snd[aria-pressed="true"] { color: var(--G); }
+  .snd[aria-pressed="true"]:hover, .snd[aria-pressed="true"]:focus-visible { color: #006600; }
+
+  .frame { border: 4px solid var(--W); box-shadow: 0 0 0 4px #000, 0 0 0 8px var(--B); background: #000; }
+  .screen { position: relative; border-bottom: 4px solid var(--W); }
+  .screen::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+  }
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; image-rendering: pixelated; background: #000; }
+
+  #hud {
+    display: flex; flex-wrap: wrap; gap: 4px 22px;
+    padding: 8px 18px; font-size: 15px;
+    border-bottom: 2px dotted var(--d);
+  }
+  #hud[hidden] { display: none; }
+  #hud .lbl { color: var(--l); }
+  #hud .low { color: var(--R); }
+
+  #text { padding: 16px 18px 12px; outline: none; }
+  #text p { margin: 0 0 .75em; max-width: 64ch; }
+  h1.title {
+    margin: 4px 0 6px; font-size: clamp(34px, 9vw, 64px); line-height: 1; letter-spacing: .05em;
+    color: var(--Y); text-shadow: 4px 4px 0 var(--R), 8px 8px 0 var(--B);
+  }
+  h2 { margin: 0 0 .6em; font-size: 20px; letter-spacing: .04em; color: var(--Y); }
+  .sub { color: var(--C); margin-top: .9em !important; }
+  .gold { color: var(--Y); }
+  .good { color: var(--G); }
+  .bad  { color: var(--R); }
+  .hint { color: var(--C); }
+  .q    { color: var(--W); background: var(--b); padding: 6px 10px; }
+  .fx   { font-size: 16px; }
+  .fx span { margin-right: 18px; }
+  .board { white-space: pre-wrap; border: 2px solid var(--d); padding: 8px 12px; max-width: 46ch; }
+  .steps { margin: 0 0 .75em; padding-left: 1.6em; max-width: 64ch; }
+  .steps li { margin: .45em 0; }
+
+  #choices { padding: 0 10px 18px; }
+  .choice {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    font: inherit; color: var(--W); background: transparent;
+    border: 0; padding: 8px 8px; margin: 2px 0; min-height: 44px;
+  }
+  .choice .n { color: var(--Y); }
+  .choice:hover, .choice:focus-visible { background: var(--W); color: #000; outline: none; }
+  .choice:hover .n, .choice:focus-visible .n { color: #aa0000; }
+
+  .foot { margin-top: 18px; font-size: 14px; color: var(--l); max-width: 64ch; }
+
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    #text { padding: 12px 12px 8px; }
+    #choices { padding: 0 4px 14px; }
+    #hud { padding: 8px 12px; font-size: 13px; }
+  }
+
+  .who { color: var(--C); }
+  .who::after { content: ":"; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="top"><a href="https://jaxtechnology.github.io/">Back to Jax Technology</a>
+    <button id="snd" class="snd" type="button" aria-pressed="false">Sound: Off</button></p>
+
+  <div class="frame">
+    <div class="screen"><canvas id="screen" width="320" height="160" aria-hidden="true"></canvas></div>
+    <div id="hud" hidden></div>
+    <div id="text" tabindex="-1" aria-live="polite"></div>
+    <div id="choices" role="group" aria-label="Your choices"></div>
+  </div>
+
+  <p class="foot">Miss Sarah's Piano Studio is a classroom game about reading and playing music. Click a choice, or press its number key. Press M to turn sound on or off. The music and sounds are made right in your browser.</p>
+</div>
+
+<noscript><p style="padding:20px">This game needs JavaScript turned on.</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* =========================================================
+     DRAWING TOOLKIT  (320 x 160 canvas, 16-color EGA palette)
+     ========================================================= */
+  var cv = $('screen');
+  var ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  var P = { k:'#000000', b:'#0000aa', g:'#00aa00', c:'#00aaaa', r:'#aa0000', m:'#aa00aa', n:'#aa5500', l:'#aaaaaa',
+            d:'#555555', B:'#5555ff', G:'#55ff55', C:'#55ffff', R:'#ff5555', M:'#ff55ff', Y:'#ffff55', W:'#ffffff' };
+
+  function R(x, y, w, h, c) {
+    ctx.fillStyle = P[c] || c;
+    ctx.fillRect(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+  }
+  function circle(cx, cy, r, c) {
+    for (var y = -r; y <= r; y++) {
+      var w = Math.floor(Math.sqrt(r * r - y * y));
+      R(cx - w, cy + y, 2 * w + 1, 1, c);
+    }
+  }
+  function tri(cx, topY, half, h, c) {
+    for (var i = 0; i < h; i++) { var w = half * 2 * (i + 1) / h; R(cx - w / 2, topY + i, w, 1, c); }
+  }
+  function sky(h, cols) {
+    var bh = Math.ceil(h / cols.length);
+    cols.forEach(function (c, i) { R(0, i * bh, 320, bh, c); });
+  }
+  function lcg(seed) {
+    var s = seed >>> 0;
+    return function () { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  }
+
+  var t = 0; // animation tick
+
+  var STARS = (function () {
+    var r = lcg(7), a = [];
+    for (var i = 0; i < 70; i++) a.push([Math.floor(r() * 320), Math.floor(r() * 110), Math.floor(r() * 7)]);
+    return a;
+  })();
+  function stars() {
+    STARS.forEach(function (s) { if ((t + s[2]) % 9 !== 0) R(s[0], s[1], 1, 1, s[2] % 3 === 0 ? 'Y' : 'W'); });
+  }
+  function cloud(x, y) { R(x, y + 8, 32, 4, 'W'); R(x + 4, y + 4, 24, 8, 'W'); R(x + 10, y, 14, 10, 'W'); }
+
+
+  /* =========================================================
+     SPRITES + SCENES  (Miss Sarah's Piano Studio)
+     ========================================================= */
+  // Pixel sprites for Sarah (32 x 46). One string per row. "." is transparent.
+var SARAH_PAL = {"h": "#4a3022", "H": "#6e4c38", "a": "#33201a", "n": "#f0c9a4", "s": "#d9a882", "k": "#2b1d12", "W": "#ffffff", "e": "#5a3c28", "g": "#6fa08a", "p": "#d98a82", "S": "#c47a72", "C": "#3d3f4d", "c": "#575a6b", "P": "#33353f", "l": "#c8c8d0", "d": "#555555", "b": "#8a4a14", "r": "#d04a4a", "R": "#f08a8a", "o": "#e89a4a", "G": "#4a9a6a", "B": "#5a7ac8", "Y": "#ffe055", "w": "#8a6030"};
+var SARAH = {
+  stand: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............hhHhhhhH............",
+    "..........hhhahhhhHhhh..........",
+    ".........hhhHahhhHhhhhH.........",
+    ".........hhHhahhHhhhhHh.........",
+    ".........hHhhahHhhhhHhh.........",
+    ".......HhhhhhaHhhhhHhhhh........",
+    ".......hhhhnnnnnnnnnhhhh........",
+    ".......hhhhnnnnnnnnnhhhH........",
+    "......hahhnneeenneeenhahh.......",
+    "......hhhHnnWggnnggWnHhhh.......",
+    ".....hhhHhnnnssnnssnnnhhhh......",
+    ".....hhHhhnnnnnssnnnnnhhhH......",
+    "......HhhhnnnnnssnnnnhhhH.......",
+    "......hahhnnnnnnnnnnnhaHh.......",
+    "......hWlh.nnnnnnnnnnhHWl.......",
+    "......hllH.nnSppppSnnHhll.......",
+    ".......dlhh.nnnnnnnnHhhdl.......",
+    ".......llhhRRnnnnnnRhhhll.......",
+    ".......ahhhoRRnnnnBBhhah........",
+    ".......hhhhoRRssssBBhhhH........",
+    "......hhhhCrooRRRRGGBhHhh.......",
+    "......hhhHCCooRRRRGGBHhhh.......",
+    ".....hhhHCCCrrooRRRRCChhhh......",
+    ".....hhahCCCCrooRRRRCCahhH......",
+    "......HhhhCCCrrrooRCChhhH.......",
+    "......hhhhCCCCrrooRCChhHh.......",
+    "......hhhhCCCCrrrrCCChHhh.......",
+    "......hhhCCCCCcCCcCCCHhhC.......",
+    ".......aHhCCCCcCCcCCHhaCC.......",
+    ".......HhhCCCCcCCcCChhhCC.......",
+    ".......hhhCCCCcCCcCChhhCC.......",
+    ".......hhhCCCCCCCCCChhhCC.......",
+    "......hhhnccccccccccchHhn.......",
+    "......hhhncccccccccccHhhn.......",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "..........kkkkk..kkkkk.........."
+  ],
+  cheer: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............hhHhhhhH............",
+    "..........hhhahhhhHhhh..........",
+    ".........hhhHahhhHhhhhH.........",
+    ".........hhHhahhHhhhhHh.........",
+    ".........hHhhahHhhhhHhh.........",
+    ".......HhhhhhaHhhhhHhhhh........",
+    ".......hhhhnnnnnnnnnhhhh........",
+    ".......hhhhnnnnnnnnnhhhH........",
+    "...nnnhahhnneeenneeenhahhnnnn...",
+    "...nnnhhhHnnWggnnggWnHhhhnnnn...",
+    "...nnhhhHhnnnssnnssnnnhhhhnnn...",
+    "...nnhhHhhnnnnnssnnnnnhhhHnnn...",
+    "....CCHhhhnnnnnssnnnnhhhH.CCC...",
+    "....CChahhnnnnnnnnnnnhaHhCCCC...",
+    "....CChWlh.nnnWWWWnnnhHWlCCCC...",
+    ".....ChllH.nnSppppSnnHhllCCC....",
+    ".....CCdlhh.nnnnnnnnHhhdlCCC....",
+    "......CllhhRRnnnnnnRhhhllCC.....",
+    "......CahhhoRRnnnnBBhhahCCC.....",
+    "......ChhhhoRRssssBBhhhHCCC.....",
+    "......hhhhCrooRRRRGGBhHhhC......",
+    "......hhhHCCooRRRRGGBHhhhC......",
+    ".....hhhHCCCrrooRRRRCChhhh......",
+    ".....hhahCCCCrooRRRRCCahhH......",
+    "......HhhhCCCrrrooRCChhhH.......",
+    "......hhhhCCCCrrooRCChhHh.......",
+    "......hhhhCCCCrrrrCCChHhh.......",
+    "......hhh.CCCCcCCcCCCHhh........",
+    ".......aHhCCCCcCCcCCHha.........",
+    ".......HhhCCCCcCCcCChhh.........",
+    ".......hhhCCCCcCCcCChhh.........",
+    ".......hhhCCCCCCCCCChhh.........",
+    "......hhh.ccccccccccchHh........",
+    "......hhh.cccccccccccHhh........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "..........kkkkk..kkkkk.........."
+  ],
+  oops: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............hhHhhhhH............",
+    "..........hhhahhhhHhhh..........",
+    ".........hhhHahhhHhhhhH.........",
+    ".........hhHhahhHhhhhHh.........",
+    ".........hHhhahHhhhhHhh.........",
+    ".......HhhhhhaHhhhhHhhhh........",
+    ".......hhhhnnnnnnnnnhhhh........",
+    ".......hhhhnnnnnnnnnhhhH........",
+    "......hahhnneeenneeenhahh.......",
+    "......hhhHnnWggnnggWnHhhh.......",
+    ".....hhhHhnnWgsnnsgWnnhhhh......",
+    ".....hhHhhnnnnnssnnnnnhhhH......",
+    "......HhhhnnnnnssnnnnhhhH.......",
+    "......hahhnnnnnnnnnnnhaHh.......",
+    "......hWlh.nnnnppnnnnhHWl.......",
+    ".nnn..hllH.nnSnppnSnnHhll...nnn.",
+    ".nnn...dlhh.nnnnnnnnHhhdl...nnn.",
+    ".nnnC..llhhRRnnnnnnRhhhll...nnn.",
+    "..CCCCCahhhoRRnnnnBBhhah..CCCCC.",
+    "..CCCCChhhhoRRssssBBhhhH.CCCCCC.",
+    "...CCChhhhCrooRRRRGGBhHhhCCCCC..",
+    ".....ChhhHCCooRRRRGGBHhhhCCC....",
+    ".....hhhHCCCrrooRRRRCChhhhC.....",
+    ".....hhahCCCCrooRRRRCCahhH......",
+    "......HhhhCCCrrrooRCChhhH.......",
+    "......hhhhCCCCrrooRCChhHh.......",
+    "......hhhhCCCCrrrrCCChHhh.......",
+    "......hhh.CCCCcCCcCCCHhh........",
+    ".......aHhCCCCcCCcCCHha.........",
+    ".......HhhCCCCcCCcCChhh.........",
+    ".......hhhCCCCcCCcCChhh.........",
+    ".......hhhCCCCCCCCCChhh.........",
+    "......hhh.ccccccccccchHh........",
+    "......hhh.cccccccccccHhh........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "..........kkkkk..kkkkk.........."
+  ],
+  baton: [
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "................................",
+    "............hhHhhhhH...........Y",
+    "..........hhhahhhhHhhh........YY",
+    ".........hhhHahhhHhhhhH........W",
+    ".........hhHhahhHhhhhHh........W",
+    ".........hHhhahHhhhhHhh.......W.",
+    ".......HhhhhhaHhhhhHhhhh......W.",
+    ".......hhhhnnnnnnnnnhhhh.....W..",
+    ".......hhhhnnnnnnnnnhhhH.....W..",
+    "......hahhnneeenneeenhahh....W..",
+    "......hhhHnnWggnnggWnHhhh...W...",
+    ".....hhhHhnnnssnnssnnnhhhh..W...",
+    ".....hhHhhnnnnnssnnnnnhhhH.W....",
+    "......HhhhnnnnnssnnnnhhhH..W....",
+    "......hahhnnnnnnnnnnnhaHhnnn....",
+    "......hWlh.nnnnnnnnnnhHWlnnn....",
+    "......hllH.nnSppppSnnHhllnnn....",
+    ".......dlhh.nnnnnnnnHhhdlCCC....",
+    ".......llhhRRnnnnnnRhhhllCCC....",
+    ".......ahhhoRRnnnnBBhhahCCCC....",
+    ".......hhhhoRRssssBBhhhHCCC.....",
+    "......hhhhCrooRRRRGGBhHhhC......",
+    "......hhhHCCooRRRRGGBHhhhC......",
+    ".....hhhHCCCrrooRRRRCChhhh......",
+    ".....hhahCCCCrooRRRRCCahhH......",
+    "......HhhhCCCrrrooRCChhhH.......",
+    "......hhhhCCCCrrooRCChhHh.......",
+    "......hhhhCCCCrrrrCCChHhh.......",
+    "......hhhCCCCCcCCcCCCHhh........",
+    ".......aHhCCCCcCCcCCHha.........",
+    ".......HhhCCCCcCCcCChhh.........",
+    ".......hhhCCCCcCCcCChhh.........",
+    ".......hhhCCCCCCCCCChhh.........",
+    "......hhhnccccccccccchHh........",
+    "......hhhncccccccccccHhh........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "...........PPPP..PPPP...........",
+    "..........kkkkk..kkkkk.........."
+  ],
+};
+
+
+  function sarah(x, y, pose, s) {
+    var g = SARAH[pose] || SARAH.stand;
+    for (var j = 0; j < g.length; j++) {
+      var row = g[j], i = 0;
+      while (i < row.length) {
+        var ch = row.charAt(i);
+        if (ch === '.') { i++; continue; }
+        var k = i; while (k < row.length && row.charAt(k) === ch) k++;
+        R(x + i * s, y + j * s, (k - i) * s, s, SARAH_PAL[ch]);
+        i = k;
+      }
+    }
+  }
+
+  var DIG = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001',
+             '111100111001111', '111100111101111', '111001010010010', '111101111101111', '111101111001111'];
+  function num(x, y, n, c, sc) {
+    sc = sc || 1;
+    String(n).split('').forEach(function (d, k) {
+      var g = DIG[Number(d)]; if (!g) return;
+      for (var i = 0; i < 15; i++) if (g.charAt(i) === '1') R(x + k * 4 * sc + (i % 3) * sc, y + Math.floor(i / 3) * sc, sc, sc, c);
+    });
+  }
+  function star(x, y, c) {
+    R(x + 2, y, 1, 1, c); R(x + 1, y + 1, 3, 1, c); R(x, y + 2, 5, 1, c); R(x + 1, y + 3, 3, 1, c); R(x + 1, y + 4, 1, 1, c); R(x + 3, y + 4, 1, 1, c);
+  }
+
+  var view = { name: 'title' };
+  var M = null;
+  var PROG = { stars: [0, 0, 0, 0, 0, 0], done: [false, false, false, false, false, false], started: false, flag: false };
+
+  var NOTE_LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+  // A piano keyboard: n white keys, 16 px wide each. lit maps a key index to a color. droop sags every other key.
+  function keyboard(x, y, n, o) {
+    o = o || {}; var kw = 16, kh = 46, lit = o.lit || {}, droop = o.droop || 0;
+    R(x - 3, y - 5, n * kw + 6, 5, '#5a2a00');
+    for (var i = 0; i < n; i++) {
+      var dy = (droop && i % 2) ? droop * 2 : 0;
+      R(x + i * kw, y + dy, kw - 1, kh, lit[i] || 'W'); R(x + i * kw + kw - 1, y + dy, 1, kh, 'k');
+      R(x + i * kw, y + dy + kh - 4, kw - 1, 4, 'rgba(0,0,0,0.18)');
+    }
+    for (var j = 0; j < n - 1; j++) if ([0, 1, 3, 4, 5].indexOf(j % 7) >= 0) R(x + j * kw + kw - 5, y + (droop && j % 2 ? droop : 0), 10, 28, 'k');
+  }
+
+  function note(x, y, c) { circle(x, y + 7, 3, c); R(x + 3, y - 8, 1, 15, c); R(x + 4, y - 8, 4, 2, c); R(x + 6, y - 6, 2, 4, c); }
+
+  function ring(cx, cy, r, c) { for (var i = 0; i < 28; i++) { var a = i / 28 * Math.PI * 2; R(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1, 1, c); } }
+
+  function studioBG() {
+    R(0, 0, 320, 108, '#f0e0c0');
+    for (var x = 0; x < 320; x += 40) R(x, 0, 1, 108, 'rgba(0,0,0,0.08)');
+    R(0, 100, 320, 8, '#c8a878'); R(0, 106, 320, 4, 'd');
+    R(0, 110, 320, 50, '#7a3a00'); for (var y = 110; y < 160; y += 10) R(0, y, 320, 1, 'rgba(0,0,0,0.25)');
+    R(24, 12, 64, 50, 'k'); R(26, 14, 60, 46, '#8fb7d8'); R(55, 14, 2, 46, 'k'); R(26, 36, 60, 2, 'k');
+    R(20, 10, 10, 54, 'r'); R(82, 10, 10, 54, 'r');
+    R(214, 14, 36, 24, 'W'); R(214, 14, 36, 1, 'k'); R(214, 37, 36, 1, 'k');
+    for (var l = 0; l < 5; l++) R(217, 19 + l * 3, 30, 1, 'd'); note(232, 20, 'k');
+    R(260, 20, 40, 28, 'W'); R(260, 20, 40, 1, 'k'); R(260, 47, 40, 1, 'k'); circle(280, 34, 6, 'Y'); R(279, 28, 2, 12, 'k');
+  }
+
+
+  /* ---- free-play piano ---- */
+  var FP = { active: false, names: true, rec: false, events: [], t0: 0, song: 0, pos: 0, down: {}, playing: 0, status: '' };
+  var WK = 15, KX = 10, KY = 62, KW = 20, KH = 72, BW = 12, BH = 44;
+  var LET = { A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100', G: '011100101101011' };
+  var SONGS = [
+    { name: 'Ode to Joy', notes: [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2, 1, 1, 2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 1, 0, 0] },
+    { name: 'Twinkle, Twinkle', notes: [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0, 4, 4, 3, 3, 2, 2, 1, 4, 4, 3, 3, 2, 2, 1, 0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0] },
+    { name: 'Mary Had a Little Lamb', notes: [2, 1, 0, 1, 2, 2, 2, 1, 1, 1, 2, 4, 4, 2, 1, 0, 1, 2, 2, 2, 2, 1, 1, 2, 1, 0] }
+  ];
+  function hasBlack(i) { return [0, 1, 3, 4, 5].indexOf(i % 7) >= 0 && i < WK - 1; }
+  function noteName(i, sharp) { return NOTE_LETTERS[i % 7] + (sharp ? '#' : '') + (4 + Math.floor(i / 7)); }
+  function isHot(k) { return FP.down[k] && (performance.now() - FP.down[k]) < 240; }
+  function glyph(x, y, ch, c) { var g = LET[ch]; if (!g) return; for (var i = 0; i < 15; i++) if (g.charAt(i) === '1') R(x + (i % 3), y + Math.floor(i / 3), 1, 1, c); }
+
+  var SCENES = {
+    title: function () {
+      studioBG();
+      keyboard(124, 86, 12);
+      var fl = reduce ? 0 : (t % 8);
+      note(150, 40 - fl, 'k'); note(190, 56 + (fl % 4), 'r'); note(240, 44 - (fl % 5), 'B'); note(280, 66, 'M');
+      sarah(34, 16, (reduce || t % 14 < 7) ? 'stand' : 'cheer', 3);
+    },
+    hub: function () {
+      studioBG();
+      R(104, 8, 200, 86, '#7a3a00'); R(108, 12, 192, 78, '#006633'); R(108, 12, 192, 2, '#005522');
+      for (var i = 0; i < 6; i++) {
+        var bx = 112 + i * 31;
+        num(bx + 11, 20, i + 1, 'W');
+        for (var s = 0; s < 3; s++) star(bx + 3 + s * 8, 34, PROG.stars[i] > s ? 'Y' : 'd');
+        R(bx + 4, 48, 19, 1, 'rgba(255,255,255,0.35)');
+      }
+      for (var l = 0; l < 5; l++) R(114, 60 + l * 4, 120, 1, 'W');
+      R(236, 98, 66, 36, '#5a2a00'); R(240, 112, 58, 6, PROG.flag ? 'l' : 'W');
+      for (var k = 0; k < 8; k++) R(242 + k * 7, 112 + (PROG.flag && k % 2 ? 2 : 0), 1, 6, 'k');
+      R(244, 134, 6, 8, '#5a2a00'); R(288, 134, 6, 8, '#5a2a00');
+      if (PROG.flag) { R(246, 90, 3, 3, 'd'); R(262, 86, 3, 3, 'd'); }
+      sarah(6, 58, view.pose || 'stand', 2);
+    },
+    free: function () {
+      studioBG();
+      R(0, 50, 320, 96, '#5a2a00'); R(0, 50, 320, 3, '#8a4a14');
+      var nxt = (FP.song && SONGS[FP.song - 1]) ? SONGS[FP.song - 1].notes[FP.pos] : -1;
+      for (var i = 0; i < WK; i++) {
+        var hot = isHot('w' + i), c = hot ? 'Y' : (i === nxt ? 'G' : 'W');
+        R(KX + i * KW, KY, KW - 1, KH, c); R(KX + i * KW + KW - 1, KY, 1, KH, 'k'); R(KX + i * KW, KY + KH - 4, KW - 1, 4, 'rgba(0,0,0,0.18)');
+        if (FP.names) glyph(KX + i * KW + 8, KY + KH - 12, NOTE_LETTERS[i % 7], i % 7 === 0 ? 'r' : 'k');
+      }
+      for (var j = 0; j < WK - 1; j++) if (hasBlack(j)) R(KX + j * KW + KW - 6, KY, BW, BH, isHot('b' + j) ? 'Y' : 'k');
+      if (FP.rec) { circle(300, 16, 6, 'R'); circle(300, 16, 3, 'r'); }
+      sarah(4, 4, 'baton', 1);
+    },
+    keys: function () {
+      studioBG();
+      var lit = {}; if (M && M.hl != null) lit[M.hl] = 'Y';
+      keyboard(84, 56, 14, { lit: lit });
+      sarah(4, 64, view.pose || 'stand', 2);
+    },
+    staff: function () {
+      studioBG();
+      R(92, 6, 214, 116, 'W'); R(92, 6, 214, 1, 'k'); R(92, 121, 214, 1, 'k');
+      for (var i = 0; i < 5; i++) R(100, 40 + i * 8, 198, 1, 'k');
+      R(112, 30, 2, 60, 'k'); ring(112, 60, 7, 'k'); R(108, 84, 4, 2, 'k'); R(106, 86, 4, 2, 'k'); circle(109, 91, 2, 'k'); R(110, 26, 4, 2, 'k'); R(113, 28, 3, 3, 'k');
+      if (M && M.sp != null) {
+        var y = 72 - M.sp * 4, x = 200;
+        R(x - 4, y - 3, 9, 7, 'k'); R(x - 3, y - 4, 7, 9, 'k');
+        if (M.sp < 4) R(x + 4, y - 22, 1, 22, 'k'); else R(x - 4, y, 1, 22, 'k');
+      }
+      sarah(4, 64, view.pose || 'stand', 2);
+    },
+    rhythm: function () {
+      studioBG();
+      R(92, 6, 214, 108, 'W'); R(92, 6, 214, 1, 'k'); R(92, 113, 214, 1, 'k');
+      for (var i = 0; i < 5; i++) R(100, 44 + i * 8, 198, 1, 'k');
+      R(100, 44, 1, 32, 'k'); R(298, 44, 1, 32, 'k'); num(106, 44, '4', 'k', 2); num(106, 60, '4', 'k', 2);
+      var m = (M && M.meas) || [], x0 = 134;
+      function head(x, y, filled) { R(x - 4, y - 3, 9, 7, 'k'); R(x - 3, y - 4, 7, 9, 'k'); if (!filled) R(x - 2, y - 2, 5, 4, 'W'); }
+      m.forEach(function (tk, k) {
+        var x = x0 + k * 40, y = 64;
+        if (tk === 'w') head(x, y, false);
+        else if (tk === 'h') { head(x, y, false); R(x + 4, y - 22, 1, 22, 'k'); }
+        else if (tk === 'q') { head(x, y, true); R(x + 4, y - 22, 1, 22, 'k'); }
+        else if (tk === 'e2') { head(x - 8, y, true); head(x + 8, y, true); R(x - 4, y - 22, 1, 22, 'k'); R(x + 12, y - 22, 1, 22, 'k'); R(x - 4, y - 22, 17, 3, 'k'); }
+        else { for (var d = 0; d < 26; d += 6) { R(x - 12 + d, y - 14, 3, 1, 'R'); R(x - 12 + d, y + 14, 3, 1, 'R'); } R(x - 12, y - 14, 1, 29, 'R'); R(x + 13, y - 14, 1, 29, 'R'); num(x - 2, y - 3, '?', 'R'); }
+      });
+      var tot = (M && M.show) ? M.show : null;
+      sarah(4, 64, view.pose || 'stand', 2);
+    },
+    scale: function () {
+      studioBG();
+      var lit = {}; if (M && M.pair) { lit[M.pair[0]] = 'Y'; if (M.pair[1] !== M.pair[0]) lit[M.pair[1]] = 'G'; }
+      keyboard(84, 56, 14, { lit: lit });
+      if (M && M.pair && M.pair[1] !== M.pair[0]) { var ax = 84 + M.pair[0] * 16 + 8, bx = 84 + M.pair[1] * 16 + 8; for (var s = ax; s <= bx; s++) R(s, 42, 1, 2, 'R'); R(ax, 42, 2, 8, 'R'); R(bx - 1, 42, 2, 8, 'R'); }
+      sarah(4, 64, view.pose || 'stand', 2);
+    },
+    memory: function () {
+      studioBG();
+      var lit = {}; if (M && M.lit != null) lit[M.lit] = 'Y';
+      var st = (M && M.strikes) || 0;
+      keyboard(84, 56, 14, { lit: lit, droop: st });
+      for (var i = 0; i < 3; i++) { circle(96 + i * 16, 30, 5, 'k'); circle(96 + i * 16, 30, 4, i < st ? 'R' : 'l'); R(95 + i * 16, 22, 2, 5, 'd'); }
+      sarah(4, 64, view.pose || 'stand', 2);
+    },
+    words: function () {
+      studioBG();
+      R(104, 14, 130, 62, 'W'); R(104, 14, 130, 1, 'k'); R(104, 75, 130, 1, 'k'); R(104, 14, 1, 62, 'k'); R(233, 14, 1, 62, 'k'); R(100, 74, 12, 10, 'W');
+      var q = ['01110', '10001', '00001', '00110', '00100', '00000', '00100'];
+      for (var r = 0; r < 7; r++) for (var c = 0; c < 5; c++) if (q[r].charAt(c) === '1') R(150 + c * 6, 22 + r * 6, 6, 6, 'B');
+      R(150, 100, 44, 28, 'r'); R(154, 100, 36, 28, 'W'); R(172, 100, 2, 28, 'd');
+      for (var l = 0; l < 4; l++) { R(158, 106 + l * 5, 12, 1, 'd'); R(178, 106 + l * 5, 10, 1, 'd'); } note(166, 108, 'k');
+      sarah(4, 64, view.pose || 'stand', 2);
+    },
+    win: function () {
+      studioBG();
+      var cc = ['Y', 'R', 'C', 'M', 'G'];
+      for (var i = 0; i < 40; i++) R((i * 37) % 320, reduce ? (i * 53) % 130 : ((i * 53) + t * 3) % 130, 2, 2, cc[i % 5]);
+      note(70, 40, 'k'); note(250, 50, 'r'); note(40, 90, 'B'); note(280, 84, 'M');
+      sarah(112, 6, 'cheer', 3);
+      var tot = PROG.stars.reduce(function (a, b) { return a + b; }, 0);
+      for (var s = 0; s < 6; s++) star(8 + s * 8, 8, tot > s * 3 ? 'Y' : 'd');
+    }
+  };
+
+  function draw() { (SCENES[view.name] || SCENES.title)(view); }
+  draw();
+  if (!reduce) setInterval(function () { t++; draw(); }, 130);
+
+  /* AUDIO START */
+  var NOTE_BASE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  function freqOf(n) {
+    var m = /^([A-G])(#?)(\d)$/.exec(n);
+    var midi = 12 * (Number(m[3]) + 1) + NOTE_BASE[m[1]] + (m[2] ? 1 : 0);
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+  function parseSeq(str) {
+    var ev = [], pos = 0;
+    str.trim().split(/\s+/).forEach(function (tok) {
+      var p = tok.split(':'), d = Number(p[1]);
+      if (p[0] !== '-') ev.push({ at: pos, f: freqOf(p[0]), d: d });
+      pos += d;
+    });
+    return { events: ev, len: pos };
+  }
+  function mkChan(str) {
+    var q = parseSeq(str), map = {};
+    q.events.forEach(function (e) { map[e.at] = e; });
+    return { map: map, len: q.len };
+  }
+  function mkTrack(d) {
+    var tr = { sd: 60 / d.tempo / 4, loop: d.loop !== false, lead: mkChan(d.lead), harm: mkChan(d.harm), bass: mkChan(d.bass), drums: d.drums || '' };
+    tr.len = tr.lead.len;
+    return tr;
+  }
+
+  var TRACKS = {
+    // Flowing, graceful title theme (C major)
+    title: mkTrack({ tempo: 100,
+      lead: 'C5:4 E5:4 G5:4 E5:4  D5:4 F5:4 A5:4 F5:4  E5:4 G5:4 B5:4 G5:4  C6:8 G5:4 E5:4',
+      harm: 'C4:2 G4:2 E4:2 G4:2 C4:2 G4:2 E4:2 G4:2  D4:2 A4:2 F4:2 A4:2 D4:2 A4:2 F4:2 A4:2  E4:2 B4:2 G4:2 B4:2 E4:2 B4:2 G4:2 B4:2  C4:2 G4:2 E4:2 G4:2 C4:8',
+      bass: 'C3:8 G2:8  D3:8 A2:8  E3:8 B2:8  C3:8 C3:8',
+      drums: '' }),
+    // Gentle studio loop (C major)
+    studio: mkTrack({ tempo: 92,
+      lead: 'E5:4 -:2 D5:2 C5:4 -:4  D5:4 -:2 E5:2 F5:4 -:4  E5:4 -:2 F5:2 G5:4 -:4  A5:4 G5:4 C6:8',
+      harm: 'C4:2 E4:2 G4:2 E4:2 C4:2 E4:2 G4:2 E4:2  D4:2 F4:2 A4:2 F4:2 D4:2 F4:2 A4:2 F4:2  E4:2 G4:2 B4:2 G4:2 E4:2 G4:2 B4:2 G4:2  F4:2 A4:2 C5:2 A4:2 C4:8',
+      bass: 'C3:8 G2:8  D3:8 A2:8  E3:8 B2:8  F2:8 C3:8',
+      drums: '' }),
+    win: mkTrack({ tempo: 140, loop: false,
+      lead: 'E5:2 G5:2 C6:2 E6:4 C6:2 E6:4  G6:4 F6:2 E6:2 C6:8',
+      harm: 'C4:2 E4:2 G4:2 C5:4 G4:2 C5:4  E4:4 D4:2 C4:2 C4:8',
+      bass: 'C3:4 G2:4 C3:4 G2:4  C3:4 G2:4 C3:8',
+      drums: 'k.h.s.h.k.h.s.hh' + 'k.k.s.s.kkkkssss' })
+  };
+
+  function audioCheck() {
+    var bad = [];
+    Object.keys(TRACKS).forEach(function (k) {
+      var t = TRACKS[k];
+      if (t.harm.len !== t.len) bad.push(k + ': harmony length ' + t.harm.len + ' vs ' + t.len);
+      if (t.bass.len !== t.len) bad.push(k + ': bass length ' + t.bass.len + ' vs ' + t.len);
+      if (t.drums.length && t.drums.length !== t.len) bad.push(k + ': drums length ' + t.drums.length + ' vs ' + t.len);
+    });
+    return bad;
+  }
+
+  var Snd = { ctx: null, master: null, bus: null, on: false, want: 'title', cur: null, tr: null, step: 0, next: 0, timer: null, noise: null, p25: null, p50: null };
+
+  function pulseWave(ctx, duty) {
+    var n = 32, re = new Float32Array(n + 1), im = new Float32Array(n + 1);
+    for (var k = 1; k <= n; k++) re[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+    return ctx.createPeriodicWave(re, im);
+  }
+
+  Snd.init = function () {
+    if (this.ctx) return true;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 1;
+      this.master.connect(this.ctx.destination);
+      var sr = this.ctx.sampleRate, buf = this.ctx.createBuffer(1, sr, sr), d = buf.getChannelData(0);
+      for (var i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1;
+      this.noise = buf;
+      this.p25 = pulseWave(this.ctx, 0.25);
+      this.p50 = pulseWave(this.ctx, 0.5);
+    } catch (e) { this.ctx = null; return false; }
+    return true;
+  };
+
+  Snd.note = function (dest, kind, f, when, dur, vol, slideTo) {
+    var c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    if (kind === 'p25') o.setPeriodicWave(this.p25);
+    else if (kind === 'p50') o.setPeriodicWave(this.p50);
+    else o.type = kind === 'saw' ? 'sawtooth' : 'triangle';
+    o.frequency.setValueAtTime(f, when);
+    if (slideTo) o.frequency.linearRampToValueAtTime(slideTo, when + dur);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(vol, when + 0.006);
+    g.gain.setValueAtTime(vol, when + Math.max(0.01, dur - 0.03));
+    g.gain.linearRampToValueAtTime(0.0001, when + dur);
+    o.connect(g); g.connect(dest);
+    o.start(when); o.stop(when + dur + 0.02);
+  };
+
+  Snd.drum = function (kind, when) {
+    var c = this.ctx, g = c.createGain();
+    if (kind === 'k') {
+      var o = c.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, when);
+      o.frequency.exponentialRampToValueAtTime(45, when + 0.09);
+      g.gain.setValueAtTime(0.2, when);
+      g.gain.exponentialRampToValueAtTime(0.001, when + 0.11);
+      o.connect(g); g.connect(this.bus);
+      o.start(when); o.stop(when + 0.13);
+      return;
+    }
+    var src = c.createBufferSource(), f = c.createBiquadFilter(), dur = kind === 's' ? 0.1 : 0.035;
+    src.buffer = this.noise;
+    f.type = kind === 's' ? 'bandpass' : 'highpass';
+    f.frequency.value = kind === 's' ? 1800 : 6500;
+    g.gain.setValueAtTime(kind === 's' ? 0.07 : 0.035, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + dur);
+    src.connect(f); f.connect(g); g.connect(this.bus);
+    src.start(when, Math.random() * 0.5, dur + 0.02);
+  };
+
+  Snd.playStep = function (tr, i, when) {
+    var e = tr.lead.map[i];
+    if (e) this.note(this.bus, 'p25', e.f, when, e.d * tr.sd * 0.92, 0.085);
+    e = tr.harm.map[i];
+    if (e) this.note(this.bus, 'p50', e.f, when, e.d * tr.sd * 0.85, 0.04);
+    e = tr.bass.map[i];
+    if (e) this.note(this.bus, 'tri', e.f, when, e.d * tr.sd * 0.95, 0.12);
+    var d = tr.drums.charAt(i);
+    if (d === 'k' || d === 's' || d === 'h') this.drum(d, when);
+  };
+
+  Snd.tick = function () {
+    var c = this.ctx, tr = this.tr;
+    if (!c || !tr) return;
+    while (this.next < c.currentTime + 0.15) {
+      this.playStep(tr, this.step, this.next);
+      this.next += tr.sd;
+      this.step++;
+      if (this.step >= tr.len) {
+        if (tr.loop) this.step = 0;
+        else { clearInterval(this.timer); this.timer = null; this.tr = null; return; }
+      }
+    }
+  };
+
+  Snd.fadeBus = function () {
+    var old = this.bus;
+    if (!old) return;
+    var now = this.ctx.currentTime;
+    try {
+      old.gain.cancelScheduledValues(now);
+      old.gain.setValueAtTime(old.gain.value, now);
+      old.gain.linearRampToValueAtTime(0, now + 0.08);
+    } catch (e) { /* ignore */ }
+    setTimeout(function () { try { old.disconnect(); } catch (e) { /* ignore */ } }, 250);
+    this.bus = null;
+  };
+
+  Snd.play = function (key) {
+    this.want = key;
+    if (!this.on || !this.ctx || this.cur === key) return;
+    this.cur = key;
+    clearInterval(this.timer);
+    this.fadeBus();
+    this.bus = this.ctx.createGain();
+    this.bus.connect(this.master);
+    this.tr = TRACKS[key];
+    this.step = 0;
+    this.next = this.ctx.currentTime + 0.08;
+    var me = this;
+    this.timer = setInterval(function () { me.tick(); }, 30);
+  };
+
+  Snd.halt = function () {
+    clearInterval(this.timer); this.timer = null; this.tr = null; this.cur = null;
+    if (this.ctx) this.fadeBus();
+  };
+
+  Snd.set = function (v) {
+    if (v && !this.init()) return;
+    this.on = v;
+    try { localStorage.setItem('sarahPianoSound', v ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (v) { this.ctx.resume(); this.cur = null; this.play(this.want); sfx('blip'); }
+    else this.halt();
+    sndLabel();
+  };
+
+  var SFX = {
+    blip:    function (S0) { Snd.note(Snd.master, 'p50', 660, S0, 0.05, 0.09); },
+    correct: function (S0) { Snd.note(Snd.master, 'p50', 784, S0, 0.09, 0.1); Snd.note(Snd.master, 'p50', 1047, S0 + 0.09, 0.18, 0.1); },
+    wrong:   function (S0) { Snd.note(Snd.master, 'saw', 196, S0, 0.14, 0.06); Snd.note(Snd.master, 'saw', 147, S0 + 0.13, 0.28, 0.06); },
+    pass:    function (S0) { [523, 659, 784, 1047].forEach(function (f, i) { Snd.note(Snd.master, 'p25', f, S0 + i * 0.08, i === 3 ? 0.25 : 0.09, 0.09); }); },
+    fail:    function (S0) { [392, 330, 262].forEach(function (f, i) { Snd.note(Snd.master, 'p50', f, S0 + i * 0.13, i === 2 ? 0.3 : 0.12, 0.09); }); },
+    gavel:   function (S0) {
+      Snd.note(Snd.master, 'tri', 130, S0, 0.07, 0.25, 70);
+      var c = Snd.ctx, src = c.createBufferSource(), g = c.createGain();
+      src.buffer = Snd.noise; g.gain.setValueAtTime(0.12, S0); g.gain.exponentialRampToValueAtTime(0.001, S0 + 0.06);
+      src.connect(g); g.connect(Snd.master); src.start(S0, 0.2, 0.08);
+    },
+    stamp:   function (S0) { Snd.note(Snd.master, 'tri', 110, S0, 0.2, 0.3, 45); Snd.note(Snd.master, 'saw', 98, S0, 0.2, 0.04, 60); }
+  };
+
+  function sfx(name, delay) {
+    if (!Snd.on || !Snd.ctx || !SFX[name]) return;
+    try { SFX[name](Snd.ctx.currentTime + (delay || 0)); } catch (e) { /* ignore */ }
+  }
+
+  /* AUDIO END */
+  // A simple piano-like tone: a triangle wave with soft overtones and a natural fade.
+  function playNote(name, dur) {
+    if (!Snd.on || !Snd.ctx) return false;
+    dur = dur || 0.9;
+    var f = freqOf(name), c = Snd.ctx, t0 = c.currentTime;
+    [['triangle', 1, 0.5], ['sine', 2, 0.16], ['sine', 3, 0.07]].forEach(function (p) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = p[0]; o.frequency.value = f * p[1];
+      g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(p[2], t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
+      o.connect(g); g.connect(Snd.master); o.start(t0); o.stop(t0 + dur + 0.05);
+    });
+    return true;
+  }
+  SFX.coin = function (S0) {
+    Snd.note(Snd.master, 'p50', 988, S0, 0.07, 0.09);
+    Snd.note(Snd.master, 'p50', 1319, S0 + 0.07, 0.22, 0.09);
+  };
+
+  // Background music plays only on the title, the studio screen, and the finale, so the piano notes stay clear.
+  function trackFor(scene) { return scene === 'title' ? 'title' : scene === 'hub' ? 'studio' : scene === 'win' ? 'win' : null; }
+
+  /* =========================================================
+     HELPERS + PROGRESS
+     ========================================================= */
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = rnd(i + 1), x = a[i]; a[i] = a[j]; a[j] = x; } return a; }
+
+  function loadP() {
+    try {
+      var o = JSON.parse(localStorage.getItem('sarahPianoProgress') || 'null');
+      if (o && o.stars && o.done && o.stars.length === 6 && o.done.length === 6) { PROG.stars = o.stars.map(Number); PROG.done = o.done.map(Boolean); PROG.flag = !!o.stamped; }
+    } catch (e) { /* ignore */ }
+  }
+  function saveP() { try { localStorage.setItem('sarahPianoProgress', JSON.stringify({ stars: PROG.stars, done: PROG.done, flag: PROG.flag })); } catch (e) { /* ignore */ } }
+  function totalStars() { return PROG.stars.reduce(function (a, b) { return a + b; }, 0); }
+  function starText(n) { var s = ''; for (var i = 0; i < 3; i++) s += i < n ? '\u2605' : '\u2606'; return s; }
+
+  function newMission(i) { M = { i: i, mistakes: 0, hint: 0 }; return M; }
+
+  function say(t) { return '<p><span class="who">SARAH</span> ' + t + '</p>'; }
+  function hintLine(list) { return (M && M.hint > 0) ? '<span class="hint">HINT: ' + list[Math.min(M.hint, list.length) - 1] + '</span>' : ''; }
+  function hintBtn(redraw) { return { label: 'Ask Sarah for a hint', run: function () { M.hint++; redraw(); } }; }
+
+  /* =========================================================
+     RENDERING
+     ========================================================= */
+  var textEl = $('text'), choicesEl = $('choices'), hudEl = $('hud'), frameEl = document.querySelector('.frame');
+  var curChoices = [];
+  function choose(c) { sfx('blip'); c.run(); }
+
+  function updateHud() {
+    if (!PROG.started) { hudEl.hidden = true; return; }
+    hudEl.hidden = false;
+    var done = PROG.done.filter(Boolean).length;
+    hudEl.innerHTML = '<span><span class="lbl">MISSIONS</span> <span class="hint">' + done + ' of 6</span></span>' +
+      '<span><span class="lbl">STARS</span> <span class="gold">' + totalStars() + ' of 18</span></span>' +
+      (M ? '<span class="good">' + MISSIONS[M.i].name.toUpperCase() + '</span>' : '');
+  }
+
+  function render(o) {
+    view = { name: o.scene || 'title', pose: o.pose || 'stand' };
+    draw();
+    updateHud();
+    var tk = trackFor(view.name);
+    if (tk) Snd.play(tk); else { Snd.want = null; Snd.halt(); }
+
+    var html = '';
+    if (o.big) html += '<h1 class="title">' + o.big + '</h1>';
+    if (o.title) html += '<h2>' + o.title + '</h2>';
+    (o.body || []).forEach(function (p) {
+      if (!p) return;
+      html += (typeof p === 'string' && p.replace(/^\s+/, '').charAt(0) === '<') ? p : '<p>' + p + '</p>';
+    });
+    textEl.innerHTML = html;
+
+    choicesEl.innerHTML = '';
+    curChoices = o.choices || [];
+    curChoices.forEach(function (c, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'choice';
+      b.innerHTML = '<span class="n">' + (i + 1) + '.</span> ' + c.label;
+      b.addEventListener('click', function () { choose(c); });
+      choicesEl.appendChild(b);
+    });
+
+    if (frameEl.getBoundingClientRect().top < 0) frameEl.scrollIntoView({ block: 'start' });
+    try { textEl.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+  }
+
+  var KEYLOCK = false;   // free-play pianos take over the keyboard
+  document.addEventListener('keydown', function (e) {
+    if (KEYLOCK) return;
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'm' || e.key === 'M') { Snd.set(!Snd.on); return; }
+    var n = parseInt(e.key, 10), idx = -1;
+    if (n >= 1 && n <= 9) idx = n - 1;
+    else if ((e.key === 'Enter' || e.key === ' ') && curChoices.length === 1 && document.activeElement.tagName !== 'BUTTON') idx = 0;
+    if (idx >= 0 && curChoices[idx]) { e.preventDefault(); choose(curChoices[idx]); }
+  });
+
+  /* ---------- reusable screens ---------- */
+  function info(o) {
+    render({ scene: o.scene, pose: o.pose, title: o.title, body: o.body,
+             choices: [{ label: o.btn || 'Continue', run: o.next }] });
+  }
+
+  // One multiple-choice question. opts: [{t, ok}]. cfg.onWrong overrides the default mistake handling.
+  function askOne(cfg, next) {
+    var opts = cfg.fixed ? cfg.opts : shuffle(cfg.opts.slice());
+    var ch = opts.map(function (o) {
+      return { label: o.t, run: function () {
+        if (o.ok) { sfx('correct', 0.08); render({ scene: cfg.scene, pose: 'cheer', title: cfg.title, body: ['<p class="good">CORRECT!</p>', say(cfg.right)], choices: [{ label: 'Continue', run: next }] }); }
+        else if (cfg.onWrong) cfg.onWrong(cfg, next);
+        else { M.mistakes++; sfx('wrong', 0.08); render({ scene: cfg.scene, pose: 'stand', title: cfg.title, body: ['<p class="bad">NOT QUITE.</p>', say(cfg.wrong)], choices: [{ label: 'Continue', run: next }] }); }
+      } };
+    });
+    if (cfg.hintFn) ch.push(cfg.hintFn);
+    render({ scene: cfg.scene, pose: 'stand', title: cfg.title,
+      body: [cfg.lead ? say(cfg.lead) : '', '<p class="q">' + cfg.q + '</p>', cfg.extra || ''], choices: ch });
+  }
+
+  // qs: [{ q, ok, bad:[...], right, wrong }]
+  function quizSeq(scene, title, qs, next) {
+    var k = 0;
+    (function step() {
+      if (k >= qs.length) return next();
+      var q = qs[k++];
+      askOne({ scene: scene, title: title + ' (' + k + ' of ' + qs.length + ')', lead: 'Quick check! Pick the best answer.', q: q.q,
+               opts: [{ t: q.ok, ok: true }].concat(q.bad.map(function (b) { return { t: b, ok: false }; })), right: q.right, wrong: q.wrong }, step);
+    })();
+  }
+
+  function finishMission() {
+    var i = M.i, m = M.mistakes, st = m <= 1 ? 3 : (m <= 3 ? 2 : 1);
+    PROG.stars[i] = Math.max(PROG.stars[i], st); PROG.done[i] = true; saveP();
+    sfx('pass');
+    render({ scene: 'win', title: 'MISSION COMPLETE!',
+      body: [say(st === 3 ? 'Fantastic work! You really know your stuff.' : st === 2 ? 'Nice job! Come back any time to try for three stars.' : 'You finished! Try again later for more stars. Practice makes perfect.'),
+             '<p class="gold">STARS: ' + starText(st) + '</p>',
+             '<p class="board">' + GAME.nb + '\n' + NOTES[i] + '</p>'],
+      choices: [{ label: 'Back to the office', run: hub }] });
+  }
+
+
+  /* =========================================================
+     MISSIONS + CONTENT  (Miss Sarah's Piano Studio)
+     ========================================================= */
+  var STEP_MS = (typeof window !== 'undefined' && window.__rapid) ? 5 : 600;
+  var MISSIONS = [
+    { name: 'Meet the Keys',    blurb: 'Learn the note names on the keyboard.' },
+    { name: 'Read the Staff',   blurb: 'Read notes on the treble staff.' },
+    { name: 'Rhythm Counting',  blurb: 'Count beats and complete each measure.' },
+    { name: 'Scales and Steps', blurb: 'Learn whole steps, half steps, and scales.' },
+    { name: 'Play the Melody',  blurb: 'Copy the pattern. Too many sour notes and the piano goes out of tune!' },
+    { name: 'Musical Words',    blurb: 'Learn the Italian words musicians use.' }
+  ];
+  var NOTES = [
+    'THE KEYS: White keys use the letters A to G, over and over. Black keys come in groups of 2 and 3. C is the white key just left of the group of two black keys.',
+    'THE STAFF: Treble lines from the bottom are E G B D F ("Every Good Boy Does Fine"). The spaces spell FACE. Higher on the staff means a higher sound.',
+    'RHYTHM: In 4/4 time, each measure has 4 beats. Whole note = 4. Half note = 2. Quarter note = 1. Two eighth notes = 1 beat together.',
+    'SCALES: A half step is the very next key. A whole step is two half steps. A major scale goes whole, whole, half, whole, whole, whole, half. The black key above C is C sharp.',
+    'MELODY: Listen first, then repeat the pattern in order. Careful listening and a steady memory build musical skill.',
+    'MUSICAL WORDS: Piano is soft. Forte is loud. Allegro is fast. Andante is a walking pace. Crescendo is gradually louder. Staccato is short. Legato is smooth.'
+  ];
+
+  var OCT = function (i) { return NOTE_LETTERS[i % 7] + (4 + Math.floor(i / 7)); };
+  function hearBtn(name, redraw) {
+    return { label: 'Hear it', run: function () { if (!playNote(name, 1.0)) M.msg = 'Sound is off. Turn it on with the Sound button or by pressing M, then try again.'; redraw(); } };
+  }
+  function msgLine() { var m = M && M.msg; if (M) M.msg = null; return m ? '<span class="hint">' + m + '</span>' : ''; }
+
+  /* ---------- Mission 1: Meet the Keys ---------- */
+  function m1() {
+    newMission(0);
+    info({ scene: 'keys', pose: 'stand', title: 'MISSION 1: MEET THE KEYS',
+      body: [say('Hello, I am Miss Sarah! Welcome to my piano studio. A piano has lots of keys, but only <b class="gold">seven letter names</b>: A, B, C, D, E, F, and G. They repeat again and again.'),
+             '<p class="board">The BLACK keys come in groups of 2 and 3.\nThe white key just LEFT of the group of TWO black keys is <span class="gold">C</span>.\nFrom C, the letters go C D E F G A B, then C again.</p>',
+             '<span class="hint">Tip: turn on Sound (press M) to hear every note you pick.</span>'],
+      next: function () { M.items = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]).slice(0, 8); M.k = 0; M.hint = 0; m1Ask(); } });
+  }
+  function m1Ask() {
+    var idx = M.items[M.k], letter = NOTE_LETTERS[idx % 7];
+    M.hl = idx;
+    var ch = NOTE_LETTERS.map(function (l) {
+      return { label: l, run: function () {
+        var ok = l === letter;
+        playNote(OCT(idx), 1.0);
+        if (ok) sfx('correct', 0.15); else { M.mistakes++; sfx('wrong', 0.15); }
+        render({ scene: 'keys', pose: ok ? 'cheer' : 'stand', title: ok ? 'CORRECT!' : 'NOT QUITE',
+          body: [say((ok ? 'Yes, that is <b class="gold">' + letter + '</b>! ' : 'That key is <b class="gold">' + letter + '</b>. ') + 'Check where it sits next to the black keys.')],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; if (M.k >= M.items.length) m1Quiz(); else m1Ask(); } }] });
+      } };
+    });
+    ch.push(hearBtn(OCT(idx), m1Ask)); ch.push(hintBtn(m1Ask));
+    render({ scene: 'keys', pose: 'stand', title: 'NAME THE KEY (' + (M.k + 1) + ' OF ' + M.items.length + ')',
+      body: [say('Look at the <b class="gold">yellow key</b> on the keyboard. What is its letter name?'), msgLine(),
+             hintLine(['Find the groups of black keys. C is just left of a group of two.', 'Count up from the nearest C: C D E F G A B.', 'The answer is ' + letter + '.'])],
+      choices: ch });
+  }
+  function m1Quiz() {
+    M.hl = null;
+    quizSeq('keys', 'KEYBOARD CHECK', [
+      { q: 'Which white key is just left of the group of TWO black keys?', ok: 'C', bad: ['A', 'E', 'G'], right: 'Yes! Find the two black keys, and C is right before them.', wrong: 'It is C. Look for the group of two black keys, and C is the white key just to the left.' },
+      { q: 'How many different letter names do piano keys use?', ok: '7', bad: ['5', '8', '12'], right: 'Correct! A B C D E F G, and then they repeat.', wrong: 'Seven: A, B, C, D, E, F, and G. After G, the pattern starts over.' }
+    ], finishMission);
+  }
+
+  /* ---------- Mission 2: Read the Staff ---------- */
+  var STAFF_NOTES = ['E', 'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F'];
+  var STAFF_NAMES = ['E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5', 'F5'];
+  function m2() {
+    newMission(1);
+    info({ scene: 'staff', pose: 'stand', title: 'MISSION 2: READ THE STAFF',
+      body: [say('Music is written on a <b class="gold">staff</b>: five lines with four spaces between them. Each note sits on a line or in a space. <b class="gold">Higher</b> on the staff means a <b class="gold">higher</b> sound.'),
+             '<p class="board">LINES, bottom to top: E G B D F\n("Every Good Boy Does Fine")\nSPACES, bottom to top: F A C E\n(they spell FACE)</p>'],
+      next: function () { M.items = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8]).slice(0, 7); M.k = 0; M.hint = 0; m2Ask(); } });
+  }
+  function m2Ask() {
+    var s = M.items[M.k], letter = STAFF_NOTES[s];
+    M.sp = s;
+    var ch = NOTE_LETTERS.map(function (l) {
+      return { label: l, run: function () {
+        var ok = l === letter;
+        playNote(STAFF_NAMES[s], 1.0);
+        if (ok) sfx('correct', 0.15); else { M.mistakes++; sfx('wrong', 0.15); }
+        render({ scene: 'staff', pose: ok ? 'cheer' : 'stand', title: ok ? 'CORRECT!' : 'NOT QUITE',
+          body: [say((ok ? '' : 'That note is <b class="gold">' + letter + '</b>. ') + (s % 2 === 0 ? 'It sits on a line, so use E G B D F.' : 'It sits in a space, so use F A C E.'))],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; if (M.k >= M.items.length) m2Quiz(); else m2Ask(); } }] });
+      } };
+    });
+    ch.push(hearBtn(STAFF_NAMES[s], m2Ask)); ch.push(hintBtn(m2Ask));
+    render({ scene: 'staff', pose: 'stand', title: 'NAME THE NOTE (' + (M.k + 1) + ' OF ' + M.items.length + ')',
+      body: [say('What is the letter name of the note on the staff?'), msgLine(),
+             hintLine(['Is the note on a line or in a space?', 'Lines from the bottom: E G B D F. Spaces: F A C E.', 'The answer is ' + letter + '.'])],
+      choices: ch });
+  }
+  function m2Quiz() {
+    M.sp = null;
+    quizSeq('staff', 'STAFF CHECK', [
+      { q: 'What do the SPACES of the treble staff spell, from the bottom up?', ok: 'FACE', bad: ['EGBDF', 'CAGE', 'BEAD'], right: 'Yes! F A C E.', wrong: 'The spaces spell FACE: F, A, C, E.' },
+      { q: 'A note higher on the staff makes what kind of sound?', ok: 'A higher sound', bad: ['A lower sound', 'A louder sound', 'A longer sound'], right: 'Correct! Up on the staff means up in pitch.', wrong: 'A higher sound. The higher a note sits on the staff, the higher its pitch.' }
+    ], finishMission);
+  }
+
+  /* ---------- Mission 3: Rhythm Counting ---------- */
+  var BEAT_OPTS = ['Whole note (4 beats)', 'Half note (2 beats)', 'Quarter note (1 beat)', 'Eighth note (1/2 beat)'];
+  var PUZ3 = [
+    { m: ['h', 'q', '?'], ok: 1, why: 'A half note is 2 beats and a quarter note is 1 beat, which makes 3. A measure needs 4, so one more beat: a quarter note.' },
+    { m: ['q', 'q', '?'], ok: 1, why: '1 + 1 = 2 beats so far. You need 2 more beats: a half note.' },
+    { m: ['?'], ok: 0, why: 'The whole measure is empty. 4 beats fills it: a whole note.' },
+    { m: ['e2', 'q', '?'], ok: 1, why: 'Two eighth notes together make 1 beat, and a quarter note is 1 beat, so 2 beats so far. You need 2 more: a half note.' },
+    { m: ['h', 'e2', '?'], ok: 2, why: 'A half note is 2 beats, and two eighth notes make 1 beat, so 3 beats so far. You need 1 more: a quarter note.' }
+  ];
+  function m3() {
+    newMission(2);
+    info({ scene: 'rhythm', pose: 'stand', title: 'MISSION 3: RHYTHM COUNTING',
+      body: [say('Rhythm is about <b class="gold">how long</b> each note lasts. In <b class="gold">4/4 time</b>, every measure holds 4 beats. Different notes last different amounts.'),
+             '<p class="board">WHOLE note = 4 beats\nHALF note = 2 beats\nQUARTER note = 1 beat\nTWO EIGHTH notes = 1 beat together</p>'],
+      next: function () { M.order = shuffle([0, 1, 2, 3, 4]); M.k = 0; M.hint = 0; m3Ask(); } });
+  }
+  function m3Ask() {
+    var p = PUZ3[M.order[M.k]];
+    M.meas = p.m;
+    var ch = BEAT_OPTS.map(function (o, i) {
+      return { label: o, run: function () {
+        var ok = i === p.ok;
+        if (ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        render({ scene: 'rhythm', pose: ok ? 'cheer' : 'stand', title: ok ? 'CORRECT!' : 'NOT QUITE', body: [say((ok ? '' : 'The answer is ' + BEAT_OPTS[p.ok].toLowerCase() + '. ') + p.why)],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; if (M.k >= PUZ3.length) m3Quiz(); else m3Ask(); } }] });
+      } };
+    });
+    ch.push(hintBtn(m3Ask));
+    render({ scene: 'rhythm', pose: 'stand', title: 'COMPLETE THE MEASURE (' + (M.k + 1) + ' OF ' + PUZ3.length + ')',
+      body: [say('This measure is in 4/4 time, so it needs exactly 4 beats. Which note fills the empty spot?'),
+             hintLine(['Add up the beats you can already see.', 'Subtract that from 4 to find how many beats are missing.', 'The answer is: ' + BEAT_OPTS[p.ok].toLowerCase() + '.'])],
+      choices: ch });
+  }
+  function m3Quiz() {
+    M.meas = null;
+    quizSeq('rhythm', 'RHYTHM CHECK', [
+      { q: 'How many beats does a half note last?', ok: '2 beats', bad: ['1 beat', '3 beats', '4 beats'], right: 'Yes! A half note lasts 2 beats.', wrong: 'A half note lasts 2 beats. A whole note lasts 4, and a quarter note lasts 1.' },
+      { q: 'In 4/4 time, how many beats are in each measure?', ok: '4', bad: ['2', '3', '8'], right: 'Correct! The top number tells you the beats per measure.', wrong: 'Four. In 4/4 time, the top number says there are 4 beats in each measure.' }
+    ], finishMission);
+  }
+
+  /* ---------- Mission 4: Scales and Steps ---------- */
+  var Q4 = [
+    { q: 'The distance from one key to the very next key, black or white, is called a...', pair: null, ok: 'Half step', bad: ['Whole step', 'Octave', 'Chord'], why: 'A half step is the smallest distance: to the very next key.', hints: ['Think of the smallest step.', 'It goes to the very next key.', 'The answer is half step.'] },
+    { q: 'Two half steps together make a...', pair: null, ok: 'Whole step', bad: ['Octave', 'Sharp', 'Measure'], why: 'Two half steps make one whole step.', hints: ['Add two small steps.', 'Two halves make a whole.', 'The answer is whole step.'] },
+    { q: 'From C to D (the highlighted keys) there is a black key between them. What is this step?', pair: [0, 1], ok: 'Whole step', bad: ['Half step', 'Octave', 'Chord'], why: 'C to the black key is one half step, and the black key to D is another. That makes a whole step.', hints: ['Count the keys you pass, including the black one.', 'C, black key, D: that is two half steps.', 'The answer is whole step.'] },
+    { q: 'From E to F (the highlighted keys) there is NO black key between them. What is this step?', pair: [2, 3], ok: 'Half step', bad: ['Whole step', 'Octave', 'Chord'], why: 'E and F are right next to each other with no key between, so it is a half step.', hints: ['Is there a key between E and F?', 'No black key between them means they are neighbors.', 'The answer is half step.'] },
+    { q: 'The C major scale uses only the white keys. Which note comes right after E in the scale?', pair: [2, 3], ok: 'F', bad: ['G', 'D', 'A'], why: 'The C major scale goes C D E F G A B C.', hints: ['Say the letters in order: C D E ...', 'The next letter after E is F.', 'The answer is F.'] },
+    { q: 'What is the black key between C and D called?', pair: [0, 1], ok: 'C sharp (C#)', bad: ['C flat', 'D sharp', 'B sharp'], why: 'The black key just above C is C sharp. It is also called D flat.', hints: ['Sharp means a half step higher.', 'It is one half step above C.', 'The answer is C sharp.'] }
+  ];
+  function m4() {
+    newMission(3);
+    info({ scene: 'scale', pose: 'stand', title: 'MISSION 4: SCALES AND STEPS',
+      body: [say('A <b class="gold">scale</b> is a ladder of notes. We build it with two kinds of steps:'),
+             '<p class="board">HALF STEP: to the very next key (black or white).\nWHOLE STEP: two half steps.\nA MAJOR scale goes: whole, whole, half, whole, whole, whole, half.\nThe C major scale is all white keys: C D E F G A B C.</p>'],
+      next: function () { M.k = 0; M.hint = 0; M.optsS = null; m4Ask(); } });
+  }
+  function m4Ask() {
+    var d = Q4[M.k]; M.pair = d.pair;
+    if (!M.optsS || M.optsSk !== M.k) { M.optsS = shuffle([{ t: d.ok, ok: true }].concat(d.bad.map(function (b) { return { t: b, ok: false }; }))); M.optsSk = M.k; }
+    var ch = M.optsS.map(function (o) {
+      return { label: o.t, run: function () {
+        if (o.ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        if (d.pair) { playNote(OCT(d.pair[0]), 0.8); playNote(OCT(d.pair[1]), 0.8); }
+        render({ scene: 'scale', pose: o.ok ? 'cheer' : 'stand', title: o.ok ? 'CORRECT!' : 'NOT QUITE', body: [say((o.ok ? '' : 'The answer is ' + d.ok + '. ') + d.why)],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; M.optsS = null; if (M.k >= Q4.length) m4Quiz(); else m4Ask(); } }] });
+      } };
+    });
+    ch.push(hintBtn(m4Ask));
+    render({ scene: 'scale', pose: 'stand', title: 'STEP BY STEP (' + (M.k + 1) + ' OF ' + Q4.length + ')', body: [say('Let us explore the keyboard.'), '<p class="q">' + d.q + '</p>', hintLine(d.hints)], choices: ch });
+  }
+  function m4Quiz() {
+    M.pair = null;
+    quizSeq('scale', 'SCALE CHECK', [
+      { q: 'The major scale pattern is whole, whole, half, whole, whole, whole, half. How many half steps does it have?', ok: '2', bad: ['1', '3', '7'], right: 'Yes! Only two of the seven steps are half steps.', wrong: 'Two. Only the third step and the last step are half steps.' },
+      { q: 'Which scale uses only white keys, starting on C?', ok: 'C major', bad: ['C sharp major', 'A flat major', 'F sharp major'], right: 'Correct! C major has no black keys.', wrong: 'C major. It is the scale with no sharps or flats, just white keys.' }
+    ], finishMission);
+  }
+
+  /* ---------- Mission 5: Play the Melody (too many sour notes and the piano goes out of tune) ---------- */
+  function m5() {
+    newMission(4); M.strikes = 0; M.round = 0; PROG.flag = false;
+    info({ scene: 'memory', pose: 'baton', title: 'MISSION 5: PLAY THE MELODY',
+      body: [say('Great musicians have great <b class="gold">ears and memory</b>. I will play a pattern of notes on the keys. Then <b class="gold">you</b> play it back in the same order!'),
+             '<p class="board">WATCH the keys light up.\nLISTEN, if your sound is on.\nThen press the same notes in order.\nThe patterns grow from 3 notes to 6.</p>'],
+      next: function () {
+        info({ scene: 'memory', pose: 'oops', title: 'WATCH OUT FOR SOUR NOTES',
+          body: [say('This mission is different. Every wrong note is a <b class="bad">sour note</b>, and the piano slips a little more <b class="bad">out of tune</b>.'),
+                 '<p class="board">1 sour note: no problem.\n2 sour notes: be careful!\n<span class="bad">3 sour notes: the piano is out of tune and the mission fails.</span></p>',
+                 say('Do not worry, you can always retune it and try again. No sound? You can still play by watching the keys.')],
+          next: function () { m5Round(); } });
+      } });
+  }
+  function m5Make(len) {
+    var p = [];
+    while (p.length < len) { var n = rnd(7); if (!p.length || p[p.length - 1] !== n) p.push(n); }
+    return p;
+  }
+  function m5Round() {
+    M.pat = m5Make(M.round + 3); M.pos = 0; M.letters = false; M.lit = null;
+    m5Watch();
+  }
+  function m5Watch() {
+    M.pos = 0; M.watch = (M.watch || 0) + 1; var token = M.watch, i = 0;
+    render({ scene: 'memory', pose: 'baton', title: 'WATCH AND LISTEN (ROUND ' + (M.round + 1) + ' OF 4)',
+      body: [say('Watch the keys light up. Get ready to repeat the pattern!'), '<p class="board">SOUR NOTES: ' + M.strikes + ' OF 3\nNOTES IN THIS PATTERN: ' + M.pat.length + '</p>'], choices: [] });
+    (function next() {
+      if (!M || M.watch !== token) return;
+      if (i >= M.pat.length) { M.lit = null; draw(); setTimeout(function () { if (M && M.watch === token) m5Input(); }, STEP_MS); return; }
+      var k = M.pat[i++]; M.lit = k; draw(); playNote(OCT(k), 0.7);
+      setTimeout(function () { if (!M || M.watch !== token) return; M.lit = null; draw(); setTimeout(next, STEP_MS * 0.4); }, STEP_MS);
+    })();
+  }
+  function m5Input() {
+    var ch = NOTE_LETTERS.map(function (l, i) {
+      return { label: l, run: function () {
+        if (i === M.pat[M.pos]) {
+          playNote(OCT(i), 0.7); M.pos++;
+          if (M.pos >= M.pat.length) {
+            sfx('correct', 0.3);
+            render({ scene: 'memory', pose: 'cheer', title: 'ROUND COMPLETE!', body: ['<p class="good">PERFECT!</p>', say('You played all ' + M.pat.length + ' notes in the right order.')],
+              choices: [{ label: M.round >= 3 ? 'Finish the mission' : 'Next round', run: function () { M.round++; if (M.round >= 4) m5Done(); else m5Round(); } }] });
+          } else m5Input();
+        } else m5Sour(i);
+      } };
+    });
+    ch.push({ label: 'Watch it again', run: function () { m5Watch(); } });
+    ch.push({ label: M.letters ? 'Hide the letters' : 'Show the letters (a hint)', run: function () { M.letters = !M.letters; m5Input(); } });
+    render({ scene: 'memory', pose: 'stand', title: 'YOUR TURN (ROUND ' + (M.round + 1) + ' OF 4)',
+      body: [say('Press the notes in the same order. Note ' + (M.pos + 1) + ' of ' + M.pat.length + '.'), '<p class="board">SOUR NOTES: ' + M.strikes + ' OF 3</p>',
+             M.letters ? '<span class="hint">The pattern: ' + M.pat.map(function (k) { return NOTE_LETTERS[k]; }).join(' - ') + '</span>' : ''],
+      choices: ch });
+  }
+  function m5Sour(played) {
+    M.strikes++; sfx('wrong');
+    if (M.strikes >= 3) { m5Fail(); return; }
+    render({ scene: 'memory', pose: 'oops', title: 'SOUR NOTE!',
+      body: ['<p class="bad">THUNK! That note was ' + NOTE_LETTERS[played] + ', and the piano slips out of tune.</p>', '<p class="board">SOUR NOTES: ' + M.strikes + ' OF 3</p>', say('The right note was <b class="gold">' + NOTE_LETTERS[M.pat[M.pos]] + '</b>. Let us watch the pattern again.')],
+      choices: [{ label: 'Watch again', run: m5Watch }] });
+  }
+  function m5Fail() {
+    PROG.flag = true; saveP(); sfx('fail', 0.25);
+    render({ scene: 'memory', pose: 'oops', title: 'OUT OF TUNE',
+      body: ['<p class="bad">THUNK! That was the third sour note.</p>',
+             say('Oh no, the piano is out of tune! Do not worry, every musician hits sour notes. Check your notebook, and we will retune the piano and try again.')],
+      choices: [
+        { label: 'Retune the piano and try again', run: function () { PROG.flag = false; saveP(); M.strikes = 0; M.round = 0; m5Round(); } },
+        { label: 'Back to the studio', run: hub }
+      ] });
+  }
+  function m5Done() { M.watch++; M.lit = null; M.mistakes = [0, 2, 4][M.strikes]; finishMission(); }
+
+  /* ---------- Mission 6: Musical Words ---------- */
+  var TERMS6 = [
+    { w: 'piano (soft)', ok: 'Soft', bad: ['Loud', 'Fast', 'Slow'], why: '"Piano" is Italian for soft. It is also the name of the instrument, which can play softly or loudly.' },
+    { w: 'forte (loud)', ok: 'Loud', bad: ['Soft', 'Smooth', 'Short'], why: '"Forte" is Italian for strong, and in music it means loud.' },
+    { w: 'allegro', ok: 'Fast and lively', bad: ['Slow and calm', 'Very soft', 'Gradually louder'], why: '"Allegro" means fast and lively. It means "cheerful" in Italian.' },
+    { w: 'andante', ok: 'A walking pace', bad: ['Very fast', 'Very loud', 'A pause'], why: '"Andante" comes from the Italian for walking. It is a steady, moderate speed.' },
+    { w: 'crescendo', ok: 'Gradually getting louder', bad: ['Suddenly stopping', 'Getting slower', 'Getting softer'], why: '"Crescendo" means growing. The music gets gradually louder.' },
+    { w: 'staccato', ok: 'Short and detached', bad: ['Smooth and connected', 'Very loud', 'Very slow'], why: '"Staccato" means each note is short and separate, like little pops.' },
+    { w: 'legato', ok: 'Smooth and connected', bad: ['Short and detached', 'Very fast', 'Very soft'], why: '"Legato" means smooth, with the notes connected like a flowing line.' },
+    { w: 'ritardando', ok: 'Gradually slowing down', bad: ['Gradually speeding up', 'Getting louder', 'Stopping'], why: '"Ritardando" means gradually slowing down, which is often used near the end of a piece.' }
+  ];
+  function m6() {
+    newMission(5);
+    info({ scene: 'words', pose: 'stand', title: 'MISSION 6: MUSICAL WORDS',
+      body: [say('Musicians around the world use <b class="gold">Italian words</b> to describe how to play. When you read them, you know exactly how a piece should sound.'),
+             '<p class="board">PIANO = soft, FORTE = loud.\nALLEGRO = fast, ANDANTE = a walking pace.\nCRESCENDO = gradually louder.\nSTACCATO = short, LEGATO = smooth.</p>'],
+      next: function () { M.order = shuffle([0, 1, 2, 3, 4, 5, 6, 7]).slice(0, 6); M.k = 0; M.hint = 0; M.optsW = null; m6Ask(); } });
+  }
+  function m6Ask() {
+    var d = TERMS6[M.order[M.k]];
+    if (!M.optsW || M.optsWk !== M.k) { M.optsW = shuffle([{ t: d.ok, ok: true }].concat(d.bad.map(function (b) { return { t: b, ok: false }; }))); M.optsWk = M.k; }
+    var ch = M.optsW.map(function (o) {
+      return { label: o.t, run: function () {
+        if (o.ok) sfx('correct'); else { M.mistakes++; sfx('wrong'); }
+        render({ scene: 'words', pose: o.ok ? 'cheer' : 'stand', title: o.ok ? 'CORRECT!' : 'NOT QUITE', body: [say((o.ok ? '' : 'The answer is: <b class="gold">' + d.ok.toLowerCase() + '</b>. ') + d.why)],
+          choices: [{ label: 'Continue', run: function () { M.k++; M.hint = 0; M.optsW = null; if (M.k >= M.order.length) m6Quiz(); else m6Ask(); } }] });
+      } };
+    });
+    ch.push(hintBtn(m6Ask));
+    render({ scene: 'words', pose: 'stand', title: 'WHAT DOES IT MEAN? (' + (M.k + 1) + ' OF ' + M.order.length + ')',
+      body: [say('A music book says <b class="gold">' + d.w.split(' (')[0] + '</b>. What does it tell you to do?'),
+             hintLine(['Think about the sound: loud, soft, fast, slow, short, or smooth.', 'Does the word sound like something you know in English?', 'The answer is: ' + d.ok.toLowerCase() + '.'])],
+      choices: ch });
+  }
+  function m6Quiz() {
+    quizSeq('words', 'WORDS CHECK', [
+      { q: 'Which word tells you to play LOUDLY?', ok: 'Forte', bad: ['Piano', 'Legato', 'Andante'], right: 'Yes! Forte means loud.', wrong: 'Forte. Forte means loud, and piano means soft.' },
+      { q: 'What does a crescendo tell you to do?', ok: 'Gradually get louder', bad: ['Stop playing', 'Play very short notes', 'Slow down'], right: 'Correct! The music grows louder, step by step.', wrong: 'Gradually get louder. A crescendo grows, like a wave building.' }
+    ], finishMission);
+  }
+
+
+  /* ---------- Free play piano ---------- */
+  var KEYMAP = { z: 'w0', x: 'w1', c: 'w2', v: 'w3', b: 'w4', n: 'w5', m: 'w6', q: 'w7', w: 'w8', e: 'w9', r: 'w10', t: 'w11', y: 'w12', u: 'w13', i: 'w14',
+                 s: 'b0', d: 'b1', g: 'b3', h: 'b4', j: 'b5', '2': 'b7', '3': 'b8', '5': 'b10', '6': 'b11', '7': 'b12' };
+  function fpStatus() {
+    var el = $('fpstat'); if (!el) return;
+    var s = FP.rec ? 'Recording... ' + FP.events.length + ' notes' : (FP.events.length ? 'Your recording has ' + FP.events.length + ' notes.' : 'Press any key to play!');
+    if (FP.song) s += '   Song helper: play the GREEN key. Note ' + (FP.pos + 1) + ' of ' + SONGS[FP.song - 1].notes.length + '.';
+    el.textContent = s;
+  }
+  function fpPress(black, i) {
+    if (!FP.active) return;
+    if (black && !hasBlack(i)) return;
+    var name = noteName(i, black);
+    playNote(name, 1.4);
+    FP.down[(black ? 'b' : 'w') + i] = performance.now();
+    if (FP.rec) FP.events.push({ n: name, b: black, i: i, t: performance.now() - FP.t0 });
+    if (FP.song && !black) {
+      var s = SONGS[FP.song - 1];
+      if (i === s.notes[FP.pos]) { FP.pos++; if (FP.pos >= s.notes.length) { FP.pos = 0; sfx('pass', 0.3); FP.status = 'You played the whole song!'; } }
+    }
+    draw(); fpStatus();
+  }
+  function fpHit(x, y) {
+    if (y >= KY && y <= KY + BH) { for (var j = 0; j < WK - 1; j++) if (hasBlack(j) && x >= KX + j * KW + KW - 6 && x <= KX + j * KW + KW - 6 + BW) return { b: true, i: j }; }
+    if (y >= KY && y <= KY + KH) { var i = Math.floor((x - KX) / KW); if (i >= 0 && i < WK) return { b: false, i: i }; }
+    return null;
+  }
+  cv.addEventListener('pointerdown', function (e) {
+    if (!FP.active || view.name !== 'free') return;
+    var r = cv.getBoundingClientRect(), k = fpHit((e.clientX - r.left) * 320 / r.width, (e.clientY - r.top) * 160 / r.height);
+    if (k) { fpPress(k.b, k.i); e.preventDefault(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!FP.active || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = KEYMAP[String(e.key).toLowerCase()];
+    if (k) { fpPress(k.charAt(0) === 'b', parseInt(k.slice(1), 10)); e.preventDefault(); }
+  });
+  function fpPlayback() {
+    if (!FP.events.length) return;
+    var token = ++FP.playing;
+    FP.events.forEach(function (ev) {
+      setTimeout(function () { if (FP.playing !== token || !FP.active) return; playNote(ev.n, 1.2); FP.down[(ev.b ? 'b' : 'w') + ev.i] = performance.now(); draw(); }, ev.t);
+    });
+  }
+  function freePlay() {
+    FP.active = true; KEYLOCK = true; FP.pos = 0;
+    if (!Snd.on) Snd.set(true);
+    renderFree();
+  }
+  function renderFree() {
+    render({ scene: 'free', pose: 'stand', title: 'FREE PLAY PIANO',
+      body: [say('This is your piano! Play anything you like. Click or tap the keys, or use your computer keyboard.'),
+             '<p class="board">WHITE KEYS: bottom row Z X C V B N M, then top row Q W E R T Y U I\nBLACK KEYS: S D G H J, then 2 3 5 6 7</p>',
+             '<p id="fpstat" class="hint"></p>'],
+      choices: [
+        { label: 'Note names: ' + (FP.names ? 'ON (click to hide)' : 'OFF (click to show)'), run: function () { FP.names = !FP.names; renderFree(); } },
+        { label: FP.rec ? '<span class="bad">Stop recording</span>' : 'Record', run: function () { if (!FP.rec) { FP.events = []; FP.t0 = performance.now(); FP.rec = true; } else FP.rec = false; renderFree(); } },
+        { label: 'Play my recording', run: function () { fpPlayback(); fpStatus(); } },
+        { label: 'Song helper: ' + (FP.song ? SONGS[FP.song - 1].name : 'OFF') + ' (click to change)', run: function () { FP.song = (FP.song + 1) % (SONGS.length + 1); FP.pos = 0; renderFree(); } },
+        { label: 'Back to the studio', run: function () { FP.active = false; FP.rec = false; FP.playing++; KEYLOCK = false; hub(); } }
+      ] });
+    fpStatus();
+  }
+
+  var RUNNERS = [m1, m2, m3, m4, m5, m6];
+  var GAME = {
+    big: 'MISS SARAH\'S PIANO STUDIO', tagline: 'Learn the keys. Read the notes. Make music!', enter: 'Enter the studio',
+    intro: 'Meet Miss Sarah, a piano teacher with a studio full of music. Learn the keys, read the staff, count the rhythm, build scales, test your musical memory, and learn the words musicians use, and then play whatever you like on the free-play piano. Miss Sarah explains everything, and hints are always one press away.',
+    soundLine: '<p class="hint">Sound is ON so you can hear the piano. Use the Sound button, or press M, to turn it off.</p>',
+    titleExtra: [{ label: 'Play a test note', run: function () { if (!Snd.on) Snd.set(true); setTimeout(function () { playNote('C4', 1.2); playNote('E4', 1.2); playNote('G4', 1.2); }, 60); } }],
+    hubExtra: [{ label: '<b>Free play piano</b> - play anything you like!', run: freePlay }],
+    hubTitle: 'THE PIANO STUDIO', back: 'the studio', nb: 'MUSIC NOTEBOOK', nbShort: 'music notebook',
+    welcomeFirst: 'Welcome to my piano studio! I am Miss Sarah. Pick a lesson to start. Lesson 1 is a great place to begin.',
+    welcomeBack: 'Welcome back to the studio! Pick a lesson. Any order works, but the order shown is the best way to learn.',
+    flagMsg: 'The piano is still out of tune from last time. Want to retune it with Mission 5?',
+    cert: 'CERTIFICATE OF MUSICAL SKILL',
+    gradSay: 'You finished every lesson! You know the keys, read the staff, count the rhythm, build scales, play by ear, and speak the language of music.',
+    rank: function (tot) { return tot >= 16 ? 'PIANO PRODIGY' : tot >= 12 ? 'MUSICIAN' : 'MUSIC STUDENT'; }
+  };
+
+  /* =========================================================
+     HUB, NOTEBOOK, GRADUATION, TITLE
+     ========================================================= */
+  function hub() {
+    M = null; PROG.started = true;
+    var all = PROG.done.every(Boolean), any = PROG.done.some(Boolean);
+    var ch = MISSIONS.map(function (m, i) {
+      return { label: '<b>' + (i + 1) + '. ' + m.name + '</b> - ' + m.blurb + (PROG.done[i] ? ' <span class="gold">' + starText(PROG.stars[i]) + '</span>' : ''), run: RUNNERS[i] };
+    });
+    (GAME.hubExtra || []).forEach(function (e) { ch.push(e); });
+    ch.push({ label: 'Open my ' + GAME.nbShort, run: notebook });
+    if (all) ch.push({ label: '<span class="gold">Graduation day!</span>', run: finale });
+    render({ scene: 'hub', pose: 'stand', title: GAME.hubTitle,
+      body: [say(any ? GAME.welcomeBack : GAME.welcomeFirst), PROG.flag ? say(GAME.flagMsg) : '',
+             '<span class="hint">' + (GAME.hubHint || 'Finish all 6 missions to graduate. Stars: 3 for few mistakes, so take your time.') + '</span>'],
+      choices: ch });
+  }
+
+  function notebook() {
+    var any = PROG.done.some(Boolean);
+    render({ scene: 'hub', pose: 'stand', title: GAME.nb,
+      body: [say(any ? 'Here is everything you have learned so far:' : 'Your notebook is empty. Finish a mission and I will write down what you learned.'),
+             any ? '<p class="board">' + NOTES.filter(function (n, i) { return PROG.done[i]; }).join('\n\n') + '</p>' : ''],
+      choices: [{ label: 'Back to ' + GAME.back, run: hub }, { label: 'Erase my progress', run: erase }] });
+  }
+  function erase() {
+    render({ scene: 'hub', pose: 'stand', title: 'ERASE PROGRESS?',
+      body: [say('This clears all your stars and your notebook. Are you sure?')],
+      choices: [{ label: 'Keep my progress', run: notebook },
+                { label: 'Yes, erase everything', run: function () { PROG.stars = [0, 0, 0, 0, 0, 0]; PROG.done = [false, false, false, false, false, false]; PROG.flag = false; saveP(); hub(); } }] });
+  }
+
+  function finale() {
+    var tot = totalStars(), rank = GAME.rank(tot);
+    sfx('pass'); sfx('coin', 0.4);
+    render({ scene: 'win', title: 'GRADUATION DAY!',
+      body: [say(GAME.gradSay),
+             '<p class="board">' + GAME.cert + '\n' + (GAME.certMissions || 'MISSIONS: 6 OF 6') + '\nSTARS: ' + tot + ' OF 18\nRANK: <span class="gold">' + rank + '</span></p>',
+             '<span class="hint">Want more stars? Go back and retry any mission for a better score.</span>'],
+      choices: [{ label: 'Back to ' + GAME.back, run: hub }] });
+  }
+
+  function title() {
+    render({ scene: 'title', big: GAME.big,
+      body: ['<p class="hint" style="margin-top:0">' + GAME.tagline + '</p>', GAME.intro, GAME.soundLine || ''],
+      choices: [
+        { label: GAME.enter, run: hub }].concat(GAME.titleExtra || []).concat([
+        { label: 'How to play', run: function () {
+            render({ scene: 'hub', pose: 'stand', title: 'HOW TO PLAY',
+              body: [say('It is easy! Here is how it works:'),
+                     '<p class="board">Click a choice, or press its number key.\nStuck? Choose "Ask Sarah for a hint" as many times as you like.\nEarn up to 3 stars per mission. Fewer mistakes means more stars.\nYour progress saves on this computer.\nPress M to turn sound on or off.</p>'],
+              choices: [{ label: 'Back', run: title }] });
+          } }
+      ]) });
+  }
+
+  /* ---------- sound button ---------- */
+  var sndBtn = $('snd');
+  function sndLabel() {
+    sndBtn.textContent = 'Sound: ' + (Snd.on ? 'On' : 'Off');
+    sndBtn.setAttribute('aria-pressed', Snd.on ? 'true' : 'false');
+  }
+  try { var savedSnd = localStorage.getItem('sarahPianoSound'); Snd.on = savedSnd === null ? true : savedSnd === '1'; } catch (e) { Snd.on = true; }
+  sndLabel();
+  sndBtn.addEventListener('click', function () { Snd.set(!Snd.on); });
+  function unlockAudio() {
+    if (Snd.on && !Snd.ctx && Snd.init()) { Snd.ctx.resume(); Snd.cur = null; Snd.play(Snd.want); }
+  }
+  document.addEventListener('pointerdown', unlockAudio);
+  document.addEventListener('keydown', unlockAudio);
+  document.addEventListener('visibilitychange', function () {
+    if (!Snd.ctx) return;
+    if (document.hidden) Snd.ctx.suspend(); else if (Snd.on) Snd.ctx.resume();
+  });
+
+  loadP();
+  title();
+})();
+</script>
+</body>
+</html>
