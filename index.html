@@ -81,15 +81,15 @@
     gap: 10px;
     min-height: 52px;
     padding: 0 26px;
-    background: var(--coral);
-    color: #1b2140;
+    background: #2874fc;
+    color: #fff;
     font-weight: 800;
     font-size: 1.1rem;
     text-decoration: none;
     border-radius: 14px;
     transition: transform .12s ease, background-color .12s ease;
   }
-  .login-btn:hover { background: #ff7f6d; transform: translateY(-2px); }
+  .login-btn:hover { background: #1f63e0; transform: translateY(-2px); }
   .login-btn:active { transform: translateY(1px); }
 
   /* ---------- Sections ---------- */
@@ -105,7 +105,7 @@
   /*
     ---------------------------------------------------------
     TO ADD A NEW TOOL OR GAME: copy one <a class="card"> block
-    inside the section you want (#learnGrid or #gamesGrid),
+    inside the section you want (#learnGrid, #createGrid or #gamesGrid),
     change the href, title and description, and pick a color
     class (c-indigo, c-sun, c-teal or c-coral). The picture in
     the corner is the <svg class="art"> inside each card: swap
@@ -430,6 +430,36 @@
         <h3 class="card-title">More games coming soon</h3>
         <p class="card-desc">Check back later.</p>
       </div>
+
+    </div>
+  </section>
+
+  <section aria-labelledby="create-heading">
+    <h2 id="create-heading">Create</h2>
+    <div class="grid" id="createGrid">
+
+      <a class="card wide c-coral" href="/sound-booth/">
+        <!-- microphone and sound waves -->
+        <svg class="art" viewBox="0 0 420 230" aria-hidden="true">
+          <rect class="dark" x="24" y="96" width="14" height="40" rx="7"/>
+          <rect class="dark" x="50" y="70" width="14" height="92" rx="7"/>
+          <rect class="dark" x="76" y="40" width="14" height="152" rx="7"/>
+          <rect class="dark" x="102" y="82" width="14" height="68" rx="7"/>
+          <rect class="dark" x="128" y="56" width="14" height="120" rx="7"/>
+          <rect class="dark" x="154" y="92" width="14" height="48" rx="7"/>
+          <rect class="dark" x="180" y="72" width="14" height="88" rx="7"/>
+          <rect class="dark" x="206" y="100" width="14" height="32" rx="7"/>
+          <rect class="light" x="276" y="20" width="64" height="112" rx="32"/>
+          <path class="ring-dark" d="M256 98 C256 152 360 152 360 98"/>
+          <rect class="dark" x="302" y="140" width="12" height="40" rx="4"/>
+          <rect class="dark" x="272" y="176" width="72" height="12" rx="6"/>
+          <circle class="ring-dark" cx="308" cy="76" r="88"/>
+        </svg>
+        <h3 class="card-title">Sound Booth</h3>
+        <p class="card-desc">Record, edit, and mix podcasts and sound projects.</p>
+      </a>
+
+      <!-- Add new creation tools here, copying the block above -->
 
     </div>
   </section>
