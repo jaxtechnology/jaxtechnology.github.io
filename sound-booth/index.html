@@ -40,7 +40,7 @@
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.45}
-button,input{font:inherit;color:inherit}
+button,input,textarea{font:inherit;color:inherit}
 .wrap{max-width:1180px;margin:0 auto;padding:18px 18px 40px}
 
 /* Top bar */
@@ -108,7 +108,7 @@ button,input{font:inherit;color:inherit}
 .group h3{margin:0;font-size:.8rem;font-weight:700;color:var(--ink-soft)}
 .hint{margin:12px 2px 0;color:var(--ink-soft);min-height:1.45em}
 .hint b{color:var(--ink)}
-.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:90vw;text-align:center;z-index:20}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:90vw;text-align:center;z-index:40}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .keys{margin-top:18px;color:var(--ink-soft);font-size:.85rem}
 .keys kbd{font-family:inherit;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;background:var(--panel);color:var(--ink)}
@@ -137,7 +137,49 @@ button,input{font:inherit;color:inherit}
 .snd .nm small{display:block;font-weight:400;color:var(--ink-soft);font-size:.78rem;margin-top:2px}
 .btn.prev{width:36px;height:36px;min-height:36px;padding:0;justify-content:center;border-radius:50%;flex:none}
 .btn.prev svg{width:14px;height:14px}
+/* Publish */
+.pub{position:fixed;inset:0;z-index:25;background:var(--bg);overflow:auto;padding:calc(18px + env(safe-area-inset-top,0px)) 18px calc(30px + env(safe-area-inset-bottom,0px))}
+.pub[hidden]{display:none}
+.pub-inner{max-width:1000px;margin:0 auto}
+.pub-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.pub-top h2{font-family:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;font-weight:800;font-size:1.6rem;margin:0}
+.pub-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px;background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:18px}
+.art-drop{min-height:300px;border:2px dashed var(--line);border-radius:14px;background:var(--panel-2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;padding:10px}
+.art-drop:hover{border-color:var(--ink-soft)}
+.art-drop:focus-visible{outline:3px solid var(--sel-edge);outline-offset:2px}
+.art-drop.has{border-style:solid;background:var(--panel-2)}
+.art-drop.drop{border-color:var(--sel-edge)}
+.art-drop img{max-width:100%;max-height:420px;border-radius:10px;display:block}
+.art-hint{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--ink-soft);text-align:center}
+.art-hint svg{width:40px;height:40px}
+.art-hint b{color:var(--ink)}
+.art-hint[hidden],.art-drop img[hidden],.art-acts[hidden]{display:none}
+.art-acts{display:flex;gap:8px;justify-content:center;margin-top:8px}
+.pub-fields{display:flex;flex-direction:column;gap:12px}
+.pub-fields label{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:.9rem}
+.pub-fields input,.pub-fields textarea{padding:9px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--panel);font-weight:400;resize:vertical}
+.pub-fields input:focus-visible,.pub-fields textarea:focus-visible{outline:3px solid var(--sel-edge);outline-offset:1px}
+.btn.big{font-size:1.1rem;padding:12px 20px;justify-content:center;margin-top:4px}
+.pub-note{color:var(--ink-soft);font-size:.85rem;margin:0}
+.stage{background:#10141F;color:#F2F4F8;border-radius:22px;padding:30px 22px 22px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.art-wrap{position:relative;display:inline-block;max-width:100%;border-radius:14px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.45);cursor:pointer;line-height:0}
+.art-wrap img{display:block;max-width:100%;max-height:min(60vh,560px)}
+.big-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:104px;height:104px;border-radius:50%;border:3px solid rgba(255,255,255,.92);background:rgba(16,20,31,.6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:transform .15s,opacity .25s}
+.big-play svg{width:44px;height:44px}
+.big-play:focus-visible{outline:3px solid #FFD84A;outline-offset:3px}
+.art-wrap:hover .big-play{transform:translate(-50%,-50%) scale(1.06)}
+.art-wrap.playing .big-play{opacity:0}
+.art-wrap.playing:hover .big-play,.art-wrap.playing .big-play:focus-visible{opacity:1}
+.ep-title{font-family:"Bricolage Grotesque","Atkinson Hyperlegible",system-ui,sans-serif;font-weight:800;font-size:1.9rem;line-height:1.15;margin:22px 0 4px}
+.ep-hosts{margin:0;color:#B9C2D3;font-weight:700}
+.ep-desc{margin:8px 0 0;max-width:60ch;color:#D5DAE4}
+.ep-hosts:empty,.ep-desc:empty,.credit-line:empty{display:none}
+.prog{display:flex;align-items:center;gap:10px;width:min(560px,100%);margin-top:18px;font-variant-numeric:tabular-nums;color:#B9C2D3;font-size:.9rem}
+.prog input{flex:1;accent-color:#FF5A5A}
+.credit-line{margin:16px 0 0;font-size:.78rem;color:#8E99AE;max-width:70ch}
+.pub-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
 @media (max-width:760px){
+  .pub-grid{grid-template-columns:1fr}
   .booth{grid-template-columns:1fr}
   .tracks{grid-template-columns:120px 1fr}
   .head.active::after{display:none}
@@ -154,8 +196,10 @@ button,input{font:inherit;color:inherit}
     <span class="spacer"></span>
     <button class="btn" id="importBtn" title="Add an audio file to the selected track">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>Add a file</button>
-    <button class="btn primary" id="exportBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg>Save my audio</button>
+    <button class="btn" id="exportBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg><span id="exportLbl">Save my audio</span></button>
+    <button class="btn primary" id="publishBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg>Publish</button>
     <input type="file" id="fileIn" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm,.aac" hidden>
   </header>
 
@@ -257,6 +301,56 @@ button,input{font:inherit;color:inherit}
   </section>
 
   <p class="keys"><kbd>Space</kbd> play or stop · <kbd>R</kbd> record · <kbd>Delete</kbd> delete part · <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>Ctrl</kbd>+<kbd>A</kbd> select all · <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> copy and paste</p>
+</div>
+<div class="pub" id="pub" hidden role="dialog" aria-modal="true" aria-labelledby="pubHead">
+  <div class="pub-inner">
+    <div id="pubForm">
+      <div class="pub-top">
+        <h2 id="pubHead">Publish your podcast</h2>
+        <button class="btn" id="pubClose">Back to editing</button>
+      </div>
+      <div class="pub-grid">
+        <div>
+          <div class="art-drop" id="artDrop" tabindex="0" role="button" aria-label="Add cover art">
+            <img id="artPrev" alt="Your cover art" hidden>
+            <span id="artHint" class="art-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              <b>Add your cover art</b>
+              <small>Click or drop a PNG or JPG here. Any shape works.</small>
+            </span>
+          </div>
+          <div class="art-acts" id="artActs" hidden><button class="btn small" id="artChange">Change</button><button class="btn small" id="artRemove">Remove</button></div>
+          <input type="file" id="artIn" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+        </div>
+        <div class="pub-fields">
+          <label>Podcast title<input id="pTitle" maxlength="60" placeholder="Wild Facts"></label>
+          <label>Hosts<input id="pHosts" maxlength="80" placeholder="First names, like Maya and Leo"></label>
+          <label>Episode description<textarea id="pDesc" rows="3" maxlength="220" placeholder="One or two sentences about this episode"></textarea></label>
+          <button class="btn primary big" id="pubGo">Publish episode</button>
+          <p class="pub-note">Publishing mixes your tracks and makes a listening page with your cover art. Nothing is posted online.</p>
+        </div>
+      </div>
+    </div>
+    <div id="pubView" hidden>
+      <div class="stage">
+        <div class="art-wrap" id="artWrap">
+          <img id="stageImg" alt="">
+          <button class="big-play" id="bigPlay" aria-label="Play episode"><svg viewBox="0 0 24 24" id="bigIcon"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg></button>
+        </div>
+        <h2 class="ep-title" id="vTitle"></h2>
+        <p class="ep-hosts" id="vHosts"></p>
+        <p class="ep-desc" id="vDesc"></p>
+        <div class="prog"><span id="tCur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Episode position"><span id="tDur">0:00</span></div>
+        <p class="credit-line" id="vCredit"></p>
+      </div>
+      <div class="pub-actions">
+        <button class="btn" id="pubBack">Back to editing</button>
+        <button class="btn" id="saveVideo">Save as video</button>
+        <button class="btn primary" id="savePage">Save podcast page</button>
+      </div>
+      <audio id="pubAudio" preload="auto"></audio>
+    </div>
+  </div>
 </div>
 <div class="toast" id="toast" role="status"></div>
 <div class="busy" id="busy"><div id="busyMsg">Working…</div></div>
@@ -418,6 +512,7 @@ function refreshUI(){
   $("selAll").disabled = !hasAudio || !!recording;
   $("undoBtn").disabled = !undo.length || !!recording;
   $("exportBtn").disabled = !tracks.some(t=>t.ch) || !!recording;
+  $("publishBtn").disabled = $("exportBtn").disabled;
   if(!playing && !recording) $("clock").textContent = fmt(sel ? sel.a : cursor);
   const t = tracks[active];
   let h;
@@ -649,7 +744,12 @@ $("zoomFit").addEventListener("click", () => { const d = projDur(); if(d<=0) ret
 
 /* ---------- Keyboard ---------- */
 document.addEventListener("keydown", e => {
-  if(e.target.closest("input")) return;
+  if(!$("pub").hidden){
+    if(e.key === "Escape" && !$("pubForm").hidden) closePublish();
+    else if(e.code === "Space" && !$("pubView").hidden && !e.target.closest("input,textarea,button")){ e.preventDefault(); togglePub(); }
+    return;
+  }
+  if(e.target.closest("input,textarea")) return;
   const mod = e.ctrlKey || e.metaKey;
   if(e.code === "Space"){ e.preventDefault(); if(recording) stopRec(); else togglePlay(); }
   else if(!mod && (e.key === "r" || e.key === "R")){ e.preventDefault(); recording ? stopRec() : startRec(); }
@@ -678,17 +778,40 @@ async function renderMix(){
   if(pk > 0.99){ const f = 0.99/pk; for(let k=0;k<L.length;k++){ L[k]*=f; R[k]*=f; } }
   return {L, R, rate: OUT};
 }
-async function encode(mix){
+async function supported(Enc, cfg){ try{ return (await Enc.isConfigSupported(cfg)).supported; }catch(_){ return false; } }
+async function encode(mix, art){
   if(typeof AudioEncoder === "undefined") throw new Error("noencoder");
   const base = {numberOfChannels:2, sampleRate:mix.rate, bitrate:160000};
-  let kind = null;
-  try{ if((await AudioEncoder.isConfigSupported({...base, codec:"mp4a.40.2"})).supported && window.Mp4Muxer) kind = "mp4"; }catch(_){}
-  if(!kind){ try{ if((await AudioEncoder.isConfigSupported({...base, codec:"opus"})).supported && window.WebMMuxer) kind = "webm"; }catch(_){} }
-  if(!kind) throw new Error("noencoder");
+  const W = art ? art.width : 0, H = art ? art.height : 0;
+  const vbase = {width:W, height:H, bitrate:350000, framerate:1};
+  const hasVE = !!art && typeof VideoEncoder !== "undefined" && typeof VideoFrame !== "undefined";
+  const aMp4 = !!window.Mp4Muxer && await supported(AudioEncoder, {...base, codec:"mp4a.40.2"});
+  const aWebm = !!window.WebMMuxer && await supported(AudioEncoder, {...base, codec:"opus"});
+  const vMp4 = hasVE && aMp4 && await supported(VideoEncoder, {...vbase, codec:"avc1.42001f"});
+  const vWebm = hasVE && aWebm && await supported(VideoEncoder, {...vbase, codec:"vp8"});
+  let kind, video = false;
+  if(vMp4){ kind = "mp4"; video = true; }
+  else if(vWebm){ kind = "webm"; video = true; }
+  else if(aMp4) kind = "mp4";
+  else if(aWebm) kind = "webm";
+  else throw new Error("noencoder");
   const muxer = kind === "mp4"
-    ? new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(), audio:{codec:"aac", numberOfChannels:2, sampleRate:mix.rate}, fastStart:"in-memory"})
-    : new WebMMuxer.Muxer({target:new WebMMuxer.ArrayBufferTarget(), audio:{codec:"A_OPUS", numberOfChannels:2, sampleRate:mix.rate}});
+    ? new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(), audio:{codec:"aac", numberOfChannels:2, sampleRate:mix.rate}, ...(video ? {video:{codec:"avc", width:W, height:H}} : {}), fastStart:"in-memory"})
+    : new WebMMuxer.Muxer({target:new WebMMuxer.ArrayBufferTarget(), audio:{codec:"A_OPUS", numberOfChannels:2, sampleRate:mix.rate}, ...(video ? {video:{codec:"V_VP8", width:W, height:H}} : {})});
   let encErr = null;
+  if(video){
+    const venc = new VideoEncoder({output:(chunk, meta) => muxer.addVideoChunk(chunk, meta), error:e => { encErr = e; }});
+    venc.configure({...vbase, codec: kind === "mp4" ? "avc1.42001f" : "vp8", ...(kind === "mp4" ? {avc:{format:"avc"}} : {})});
+    const secs = Math.max(1, Math.ceil(mix.L.length/mix.rate));
+    for(let i=0;i<secs;i++){
+      const vf = new VideoFrame(art, {timestamp:i*1e6, duration:1e6});
+      venc.encode(vf, {keyFrame: i % 10 === 0}); vf.close();
+      if(venc.encodeQueueSize > 4) await new Promise(r => setTimeout(r, 0));
+      if(encErr) throw encErr;
+    }
+    await venc.flush(); venc.close();
+    if(encErr) throw encErr;
+  }
   const enc = new AudioEncoder({output:(chunk, meta) => muxer.addAudioChunk(chunk, meta), error:e => { encErr = e; }});
   enc.configure({...base, codec: kind==="mp4" ? "mp4a.40.2" : "opus"});
   const FR = 4096;
@@ -703,7 +826,7 @@ async function encode(mix){
   await enc.flush(); enc.close();
   if(encErr) throw encErr;
   muxer.finalize();
-  return {buffer: muxer.target.buffer, ext: kind};
+  return {buffer: muxer.target.buffer, ext: kind, video, artDropped: !!art && !video};
 }
 let downloadsP = null;
 try{ if(window.claude && typeof window.claude.use === "function") downloadsP = window.claude.use("downloads"); }catch(_){}
@@ -724,10 +847,11 @@ $("exportBtn").addEventListener("click", async () => {
   try{
     const mix = await renderMix();
     busy("Making your audio file…");
-    const {buffer, ext} = await encode(mix);
+    const {buffer, ext, video, artDropped} = await encode(mix, null);
     const safe = ($("title").value.trim() || "my-audio").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"-").toLowerCase() || "my-audio";
     busy("");
-    await saveFile(`${safe}.${ext}`, new Blob([buffer], {type: ext==="mp4" ? "audio/mp4" : "audio/webm"}));
+    await saveFile(`${safe}.${ext}`, new Blob([buffer], {type: (video ? "video/" : "audio/") + ext}));
+    if(artDropped) setTimeout(() => toast("Your audio saved, but this browser couldn’t add the cover art. Turn in your cover art separately.", 6000), 2800);
   }catch(err){
     console.error(err);
     busy("");
@@ -1242,7 +1366,7 @@ const CAT_COLOR = {fx:"--fx", places:"--fx", music:"--music", sting:"--voice"};
 const PLAY_SVG = '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>';
 const STOP_SVG = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor"/></svg>';
 const fxCache = new Map();
-let libTab = "fx", preview = null, previewReq = 0;
+let libTab = "fx", preview = null, previewReq = 0, usedRecorded = false;
 
 // Music is rendered once as an intro plus a 16-bar cycle, then repeated to any length.
 function songSource(item){
@@ -1342,6 +1466,7 @@ async function addSound(item){
   try{
     const chs = await soundFor(item, false);
     mixAt(ti, chs.map(c => c.slice()), at, "add " + item.name.toLowerCase());
+    if(item.file) usedRecorded = true;
     if(item.cat === "fx" || item.cat === "sting") cursor = at + chs[0].length/sr;
     draw();
     toast(item.cat === "music"
@@ -1394,6 +1519,171 @@ $("libTabs").addEventListener("click", e => {
   renderLib();
 });
 renderLib();
+
+
+/* ---------- Publish ---------- */
+const pubState = {art:null, cover:null, mix:null, blob:null, ext:"mp4", url:null, title:"", hosts:"", desc:""};
+const pa = $("pubAudio");
+const CREDIT = "Sound effects from “Oculus Audio Pack 01” by Oculus VR, LLC, licensed CC BY 4.0.";
+const escHTML = str => String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtT = s => { s = Math.max(0, Math.floor(s || 0)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`; };
+const fileSafe = str => (str.trim() || "my-podcast").replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"-").toLowerCase() || "my-podcast";
+function openPublish(){
+  if(recording) return;
+  if(!tracks.some(t => t.ch && !t.muted)){ toast("Record or add some sound before you publish."); return; }
+  stopPlay(); stopPreview();
+  if(!$("pTitle").value){ const t = $("title").value.trim(); if(t && t !== "My audio project") $("pTitle").value = t; }
+  $("pubForm").hidden = false; $("pubView").hidden = true; $("pub").hidden = false;
+  document.body.style.overflow = "hidden"; $("pTitle").focus();
+}
+function closePublish(){ pa.pause(); $("pub").hidden = true; document.body.style.overflow = ""; $("publishBtn").focus(); }
+async function setArt(file){
+  try{
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 1600/Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.max(2, Math.round(bmp.width*k)); c.height = Math.max(2, Math.round(bmp.height*k));
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    pubState.art = c; showArt();
+  }catch(err){ console.error(err); toast("That image couldn’t be opened. Try a PNG or JPG."); }
+}
+function showArt(){
+  const has = !!pubState.art;
+  $("artDrop").classList.toggle("has", has);
+  $("artPrev").hidden = !has; $("artHint").hidden = has; $("artActs").hidden = !has;
+  if(has) $("artPrev").src = pubState.art.toDataURL("image/jpeg", .88);
+}
+function defaultArt(title, hosts){
+  const c = document.createElement("canvas"); c.width = 1280; c.height = 720; const g = c.getContext("2d");
+  const grd = g.createLinearGradient(0, 0, 1280, 720); grd.addColorStop(0, "#3463D1"); grd.addColorStop(1, "#B4519B");
+  g.fillStyle = grd; g.fillRect(0, 0, 1280, 720);
+  g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "800 92px 'Bricolage Grotesque', system-ui, sans-serif";
+  const words = title.split(/\s+/), lines = []; let line = "";
+  for(const w of words){ const t = line ? line + " " + w : w; if(g.measureText(t).width > 1080 && line){ lines.push(line); line = w; } else line = t; }
+  lines.push(line);
+  // Title above the center and hosts below it, leaving room for the play button.
+  const lh = 100, top = Math.max(80, 230 - (lines.length-1)*lh);
+  lines.slice(0,3).forEach((l, i) => g.fillText(l, 640, top + i*lh));
+  if(hosts){ g.font = "700 42px 'Atkinson Hyperlegible', system-ui, sans-serif"; g.fillStyle = "rgba(255,255,255,.88)"; g.fillText("Hosted by " + hosts, 640, 560); }
+  return c;
+}
+async function doPublish(){
+  const title = $("pTitle").value.trim(), hosts = $("pHosts").value.trim(), desc = $("pDesc").value.trim();
+  if(!title){ toast("Give your podcast a title first."); $("pTitle").focus(); return; }
+  busy("Mixing your episode…");
+  try{
+    const mix = await renderMix();
+    busy("Publishing…");
+    const {buffer, ext} = await encode(mix, null);
+    Object.assign(pubState, {mix, ext, title, hosts, desc, blob:new Blob([buffer], {type:"audio/" + ext}), cover: pubState.art || defaultArt(title, hosts)});
+    if(pubState.url) URL.revokeObjectURL(pubState.url);
+    pubState.url = URL.createObjectURL(pubState.blob);
+    $("stageImg").src = pubState.cover.toDataURL("image/jpeg", .9);
+    $("stageImg").alt = `Cover art for ${title}`;
+    $("vTitle").textContent = title;
+    $("vHosts").textContent = hosts ? `Hosted by ${hosts}` : "";
+    $("vDesc").textContent = desc;
+    $("vCredit").textContent = usedRecorded ? CREDIT : "";
+    pa.src = pubState.url; $("seek").value = 0; $("tCur").textContent = "0:00"; $("tDur").textContent = fmtT(mix.L.length/mix.rate);
+    $("pubForm").hidden = true; $("pubView").hidden = false;
+    busy(""); $("bigPlay").focus();
+    toast("Published! Press play to listen.");
+  }catch(err){
+    console.error(err); busy("");
+    toast(err && err.message === "noencoder" ? "Publishing needs Chrome or Edge on this device." : "Something went wrong while publishing. Try again.", 4500);
+  }
+}
+function togglePub(){ if(pa.paused) pa.play().catch(() => toast("Press play again to start.")); else pa.pause(); }
+const PLAY_BIG = '<path d="M8 5l12 7-12 7z" fill="currentColor"/>', PAUSE_BIG = '<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>';
+pa.addEventListener("play", () => { $("artWrap").classList.add("playing"); $("bigIcon").innerHTML = PAUSE_BIG; $("bigPlay").setAttribute("aria-label","Pause episode"); });
+const onStop = () => { $("artWrap").classList.remove("playing"); $("bigIcon").innerHTML = PLAY_BIG; $("bigPlay").setAttribute("aria-label","Play episode"); };
+pa.addEventListener("pause", onStop); pa.addEventListener("ended", onStop);
+pa.addEventListener("timeupdate", () => { const d = pubState.mix ? pubState.mix.L.length/pubState.mix.rate : (pa.duration || 0); if(d){ $("seek").value = Math.round(pa.currentTime/d*1000); } $("tCur").textContent = fmtT(pa.currentTime); });
+$("seek").addEventListener("input", e => { const d = pubState.mix ? pubState.mix.L.length/pubState.mix.rate : (pa.duration || 0); if(d) pa.currentTime = e.target.value/1000*d; });
+$("bigPlay").addEventListener("click", e => { e.stopPropagation(); togglePub(); });
+$("artWrap").addEventListener("click", togglePub);
+$("publishBtn").addEventListener("click", openPublish);
+$("pubClose").addEventListener("click", closePublish);
+$("pubBack").addEventListener("click", () => { pa.pause(); $("pubView").hidden = true; $("pubForm").hidden = false; closePublish(); });
+$("pubGo").addEventListener("click", doPublish);
+$("artDrop").addEventListener("click", () => $("artIn").click());
+$("artDrop").addEventListener("keydown", e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); $("artIn").click(); } });
+$("artChange").addEventListener("click", () => $("artIn").click());
+$("artRemove").addEventListener("click", () => { pubState.art = null; showArt(); });
+$("artIn").addEventListener("change", e => { const f = e.target.files[0]; if(f) setArt(f); e.target.value = ""; });
+$("artDrop").addEventListener("dragover", e => { e.preventDefault(); $("artDrop").classList.add("drop"); });
+$("artDrop").addEventListener("dragleave", () => $("artDrop").classList.remove("drop"));
+$("artDrop").addEventListener("drop", e => { e.preventDefault(); $("artDrop").classList.remove("drop"); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if(f && f.type.startsWith("image/")) setArt(f); });
+
+function videoCanvas(src){
+  const k = Math.min(1, 1280/Math.max(src.width, src.height));
+  const even = n => Math.max(2, Math.round(n/2)*2);
+  const c = document.createElement("canvas"); c.width = even(src.width*k); c.height = even(src.height*k);
+  c.getContext("2d").drawImage(src, 0, 0, c.width, c.height); return c;
+}
+$("saveVideo").addEventListener("click", async () => {
+  if(!pubState.mix) return; pa.pause();
+  busy("Making your video…");
+  try{
+    const {buffer, ext, video, artDropped} = await encode(pubState.mix, videoCanvas(pubState.cover));
+    busy("");
+    await saveFile(`${fileSafe(pubState.title)}.${ext}`, new Blob([buffer], {type:(video ? "video/" : "audio/") + ext}));
+    if(artDropped) setTimeout(() => toast("Your audio saved, but this browser couldn’t add the cover art. Turn in your cover art separately.", 6000), 2800);
+  }catch(err){ console.error(err); busy(""); toast("The video couldn’t be made. Try Save podcast page instead.", 4500); }
+});
+const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+function podcastPage({title, hosts, desc, credit, cover, audio, dur}){
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escHTML(title)}</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}
+body{background:#0B0E16;color:#F2F4F8;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center;padding:28px 18px}
+main{display:flex;flex-direction:column;align-items:center;text-align:center;max-width:900px;width:100%}
+.art{position:relative;display:inline-block;max-width:100%;border-radius:14px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.5);cursor:pointer;line-height:0}
+.art img{display:block;max-width:100%;max-height:62vh}
+.play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:104px;height:104px;border-radius:50%;border:3px solid rgba(255,255,255,.92);background:rgba(16,20,31,.6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:transform .15s,opacity .25s}
+.play svg{width:44px;height:44px}.art:hover .play{transform:translate(-50%,-50%) scale(1.06)}
+.art.on .play{opacity:0}.art.on:hover .play,.play:focus-visible{opacity:1}
+.play:focus-visible{outline:3px solid #FFD84A;outline-offset:3px}
+h1{font-size:2rem;line-height:1.15;margin:22px 0 4px}
+.hosts{margin:0;color:#B9C2D3;font-weight:700}.desc{margin:8px 0 0;max-width:60ch;color:#D5DAE4}
+.prog{display:flex;align-items:center;gap:10px;width:min(560px,100%);margin-top:18px;font-variant-numeric:tabular-nums;color:#B9C2D3;font-size:.9rem}
+.prog input{flex:1;accent-color:#FF5A5A}
+.credit{margin:16px 0 0;font-size:.78rem;color:#8E99AE;max-width:70ch}
+</style></head><body><main>
+<div class="art" id="art"><img src="${cover}" alt="Cover art for ${escHTML(title)}">
+<button class="play" id="play" aria-label="Play episode"><svg viewBox="0 0 24 24" id="ic"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg></button></div>
+<h1>${escHTML(title)}</h1>
+${hosts ? `<p class="hosts">Hosted by ${escHTML(hosts)}</p>` : ""}
+${desc ? `<p class="desc">${escHTML(desc)}</p>` : ""}
+<div class="prog"><span id="cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Episode position"><span>${fmtT(dur)}</span></div>
+${credit ? `<p class="credit">${escHTML(credit)}</p>` : ""}
+<audio id="a" preload="auto" src="${audio}"></audio>
+</main>
+<script>
+var a=document.getElementById("a"),art=document.getElementById("art"),ic=document.getElementById("ic"),seek=document.getElementById("seek"),cur=document.getElementById("cur"),btn=document.getElementById("play"),D=${dur.toFixed(2)};
+function f(s){s=Math.max(0,Math.floor(s||0));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+function t(){if(a.paused)a.play();else a.pause()}
+art.addEventListener("click",t);btn.addEventListener("click",function(e){e.stopPropagation();t()});
+a.addEventListener("play",function(){art.classList.add("on");ic.innerHTML='<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>';btn.setAttribute("aria-label","Pause episode")});
+function s(){art.classList.remove("on");ic.innerHTML='<path d="M8 5l12 7-12 7z" fill="currentColor"/>';btn.setAttribute("aria-label","Play episode")}
+a.addEventListener("pause",s);a.addEventListener("ended",s);
+a.addEventListener("timeupdate",function(){seek.value=Math.round(a.currentTime/D*1000);cur.textContent=f(a.currentTime)});
+seek.addEventListener("input",function(){a.currentTime=seek.value/1000*D});
+document.addEventListener("keydown",function(e){if(e.code==="Space"&&e.target.tagName!=="INPUT"&&e.target.tagName!=="BUTTON"){e.preventDefault();t()}});
+<\/script></body></html>`;
+}
+$("savePage").addEventListener("click", async () => {
+  if(!pubState.blob) return; pa.pause();
+  busy("Making your podcast page…");
+  try{
+    const html = podcastPage({title:pubState.title, hosts:pubState.hosts, desc:pubState.desc, credit: usedRecorded ? CREDIT : "",
+      cover: pubState.cover.toDataURL("image/jpeg", .88), audio: await blobToDataURL(pubState.blob), dur: pubState.mix.L.length/pubState.mix.rate});
+    busy("");
+    await saveFile(`${fileSafe(pubState.title)}-podcast.html`, new Blob([html], {type:"text/html"}));
+  }catch(err){ console.error(err); busy(""); toast("The podcast page couldn’t be saved. Try again.", 4500); }
+});
 
 window.addEventListener("beforeunload", e => { if(tracks.some(t=>t.ch)){ e.preventDefault(); e.returnValue = ""; } });
 
